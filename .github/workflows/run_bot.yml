@@ -2,31 +2,31 @@ name: Moovo Auto Tracker
 
 on:
   schedule:
-    - cron: '0 * * * *'  # 每小時整點執行 (例如 01:00, 02:00...)
-  workflow_dispatch:      # 讓您可以點按鈕手動測試
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   run-bot:
-    runs-on: windows-latest # 關鍵！使用 Windows 環境繞過防護
-
+    runs-on: windows-latest
     steps:
-      - name: 1. 複製程式碼
+      - name: 1. Checkout
         uses: actions/checkout@v4
 
-      - name: 2. 設定 Python
+      - name: 2. Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: 3. 安裝工具 (Playwright 是關鍵)
+      - name: 3. Install
         run: |
           pip install requests playwright
           playwright install chromium
 
-      - name: 4. 啟動機器人
+      - name: 4. Run
         env:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
-          # 💡 大師的神來一筆：強制 Python 使用 UTF-8 輸出，這樣印表情符號就不會報錯了！
+          # 雙重保險，強制使用 UTF-8
+          PYTHONUTF8: 1
           PYTHONIOENCODING: utf-8
         run: python myapp.py
