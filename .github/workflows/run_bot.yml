@@ -1,0 +1,30 @@
+name: Moovo Auto Tracker
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 每小時整點執行 (例如 01:00, 02:00...)
+  workflow_dispatch:      # 讓您可以點按鈕手動測試
+
+jobs:
+  run-bot:
+    runs-on: windows-latest # 關鍵！使用 Windows 環境繞過防護
+
+    steps:
+      - name: 1. 複製程式碼
+        uses: actions/checkout@v4
+
+      - name: 2. 設定 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 3. 安裝工具 (Playwright 是關鍵)
+        run: |
+          pip install requests playwright
+          playwright install chromium
+
+      - name: 4. 啟動機器人
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        run: python myapp.py
