@@ -80,20 +80,39 @@ async def main():
     raw_data = await scrape_moovo()
     
     if raw_data:
-        # 讓 Gemini 重新排版文字
-        prompt = f"你是一個專業的單車助理。請將以下資料整理成一段非常易讀、溫馨、帶有大量 Emoji 的 LINE 訊息。只要給我結果文字，不要有開場白：{raw_data}"
+        # 🎯 優化指令：讓 Gemini 絕對服從排版要求
+        prompt = f"""
+        請根據以下單車資料，撰寫一段溫馨且易讀的 LINE 訊息。
+        要求：
+        1. 使用繁體中文。
+        2. 加上豐富的 Emoji（如 🚲, 📍, ✅, ❌）。
+        3. 標註哪些站點「還有車」以及「目前沒車」。
+        4. 不要包含任何程式碼標籤，直接給我結果文字。
+        
+        原始資料：{raw_data}
+        """
         
         try:
-            # 🚀 這裡也稍微調整一下呼叫方式
+            # 🚀 加入安全檢查與重試邏輯
             result = model.generate_content(prompt)
-            ai_message = result.text
             
-            send_line_message(ai_message)
-            print("Success! AI Enhanced message sent.")
+            # 確保 result 裡面真的有文字
+            if result and result.text:
+                ai_message = result.text.strip()
+                send_line_message(ai_message)
+                print("Success! AI Enhanced message sent.")
+            else:
+                raise ValueError("Gemini returned empty result")
+                
         except Exception as e:
             print(f"Gemini Processing Error: {e}")
-            # 如果 AI 壞了，至少發送原始文字保險
-            send_line_message(str(raw_data))
+            # 🛡️ 如果 AI 沒反應，我們手動做一個簡單的排版作為備案，不要發送難看的 JSON
+            backup_msg = "🚲 Moovo 站點簡易報表：\n"
+            for item in raw_data:
+                status = "✅" if int(item['bikes']) > 0 else "❌"
+                backup_msg += f"{status} {item['name']}: {item['bikes']} 輛\n"
+            send_line_message(backup_msg)
+            print("AI failed, sent formatted backup message.")
     else:
         print("Failed to get data.")
 
