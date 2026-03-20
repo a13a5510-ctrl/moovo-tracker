@@ -19,7 +19,7 @@ jobs:
 
       - name: 3. 安裝工具
         run: |
-          pip install requests playwright google-generativeai
+          pip install --upgrade requests playwright google-generativeai
           playwright install chromium
 
       - name: 4. 啟動機器人
