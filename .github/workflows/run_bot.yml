@@ -17,16 +17,16 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: 3. Install
+      - name: 3. 安裝工具
         run: |
-          pip install requests playwright
+          pip install requests playwright google-generativeai
           playwright install chromium
 
       - name: 4. 啟動機器人
         env:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
-          # 💡 這兩個設定是為了讓 Windows 終端機死心塌地使用 UTF-8
-          PYTHONIOENCODING: utf-8
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PYTHONUTF8: 1
+          PYTHONIOENCODING: utf-8
         run: python myapp.py
