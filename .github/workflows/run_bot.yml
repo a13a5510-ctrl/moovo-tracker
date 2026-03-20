@@ -2,12 +2,14 @@ name: Moovo Auto Tracker
 
 on:
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
+    # 🎯 修改這裡：從 '0 * * * *' 改為 '0 */4 * * *'
+    - cron: '0 */4 * * *'  # 每 4 小時執行一次 (整點)
+  workflow_dispatch:      # 依然保留手動按鈕，方便您隨時測試
 
 jobs:
   run-bot:
     runs-on: windows-latest
+    # ... 後面的步驟維持原樣 ...
     steps:
       - name: 1. Checkout
         uses: actions/checkout@v4
