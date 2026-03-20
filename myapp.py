@@ -12,11 +12,13 @@ LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_USER_ID = os.getenv("LINE_USER_ID")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+# 🔐 配置 Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+# 🎯 關鍵修改：換成最新的模型名稱 'gemini-1.5-flash'
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 if not all([LINE_CHANNEL_ACCESS_TOKEN, LINE_USER_ID, GEMINI_API_KEY]):
-    print("Error: Missing Credentials in Environment Secrets")
+    print("Error: Missing Credentials")
     exit()
 
 # ================= 2. AI 美化：叫 Gemini 設計網頁 =================
@@ -78,12 +80,20 @@ async def main():
     raw_data = await scrape_moovo()
     
     if raw_data:
-        # 讓 Gemini 重新排版文字，變得很漂亮
-        prompt = f"請將以下資料整理成一段非常易讀、溫馨、帶有 Emoji 的 LINE 訊息。只要給我結果文字：{raw_data}"
-        ai_message = model.generate_content(prompt).text
+        # 讓 Gemini 重新排版文字
+        prompt = f"你是一個專業的單車助理。請將以下資料整理成一段非常易讀、溫馨、帶有大量 Emoji 的 LINE 訊息。只要給我結果文字，不要有開場白：{raw_data}"
         
-        send_line_message(ai_message)
-        print("Success! AI Enhanced message sent.")
+        try:
+            # 🚀 這裡也稍微調整一下呼叫方式
+            result = model.generate_content(prompt)
+            ai_message = result.text
+            
+            send_line_message(ai_message)
+            print("Success! AI Enhanced message sent.")
+        except Exception as e:
+            print(f"Gemini Processing Error: {e}")
+            # 如果 AI 壞了，至少發送原始文字保險
+            send_line_message(str(raw_data))
     else:
         print("Failed to get data.")
 
