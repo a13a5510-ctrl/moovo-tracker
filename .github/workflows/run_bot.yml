@@ -2,15 +2,13 @@ name: Moovo Auto Tracker
 
 on:
   schedule:
-    # 🎯 這串咒語對應台灣時間的 01, 05, 09, 13, 17, 21 點
-    # (計算方式：台灣時間減 8 小時 = UTC 時間)
+    # 台灣時間 01, 05, 09, 13, 17, 21 點回報
     - cron: '0 1,5,9,13,17,21 * * *'
-  workflow_dispatch:      # 依然保留手動按鈕，方便您隨時測試
+  workflow_dispatch:
 
 jobs:
   run-bot:
     runs-on: windows-latest
-    # ... 後面的步驟維持原樣 ...
     steps:
       - name: 1. Checkout
         uses: actions/checkout@v4
@@ -18,14 +16,14 @@ jobs:
       - name: 2. Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11' # 🎯 升級到 3.11
+          python-version: '3.11'
 
       - name: 3. 安裝工具
         run: |
           pip install --upgrade pip
-          # 🎯 先解除安裝舊版，再安裝新版，確保環境乾淨
+          # 🎯 徹底移除舊版，安裝新版 google-genai
           pip uninstall -y google-generativeai
-          pip install --upgrade requests playwright google-genai
+          pip install requests playwright google-genai
           playwright install chromium
 
       - name: 4. 啟動機器人
@@ -33,6 +31,4 @@ jobs:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          PYTHONUTF8: 1
-          PYTHONIOENCODING: utf-8
         run: python myapp.py
