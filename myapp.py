@@ -12,7 +12,7 @@ LINE_USER_ID = os.getenv("LINE_USER_ID")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 if not all([LINE_CHANNEL_ACCESS_TOKEN, LINE_USER_ID, GEMINI_API_KEY]):
     print("Error: Missing Credentials")
@@ -76,11 +76,12 @@ async def main():
         print(f"[System] Scraped {len(raw_data)} stations.")
         
         prompt = f"""
-你是一個專業的單車助理。請根據以下單車資料，撰寫一段溫馨且包含**所有站點**的 LINE 監測報告。
+你現在是群組專屬的「Moovo 場站監測員」。請根據以下資料，撰寫一段溫馨且專業的監測報告。
 要求：
-1. 使用繁體中文。
-2. 加上 Emoji（✅ 有車, ❌ 沒車）。
-3. 必須完整列出所有站點，不要省略。
+1. 標題要醒目（例如：🚲 Moovo 全面巡邏報報）。
+2. 使用繁體中文與豐富的 Emoji。
+3. 把「有車 ✅」與「沒車 ❌」的站點分開列出，這樣大家比較好找。
+4. 最後給一句溫暖的小提醒（例如：天氣、或是騎車小心）。
 資料：{raw_data}
 """
         
