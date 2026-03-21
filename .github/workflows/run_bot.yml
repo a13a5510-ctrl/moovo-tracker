@@ -30,4 +30,6 @@ jobs:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # 🎯 關鍵補丁：強迫 Windows 伺服器支援中文顯示
+          PYTHONIOENCODING: utf-8
         run: python myapp.py
