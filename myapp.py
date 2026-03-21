@@ -75,42 +75,34 @@ async def main():
     if raw_data:
         print(f"[System] Scraped {len(raw_data)} stations.")
         
-        prompt = f"""
-你現在是群組專屬的「Moovo 場站監測員」。請根據以下資料，撰寫一段溫馨且專業的監測報告。
-要求：
-1. 標題要醒目（例如：🚲 Moovo 全面巡邏報報）。
-2. 使用繁體中文與豐富的 Emoji。
-3. 把「有車 ✅」與「沒車 ❌」的站點分開列出，這樣大家比較好找。
-4. 最後給一句溫暖的小提醒（例如：天氣、或是騎車小心）。
-資料：{raw_data}
-"""
+        # 🎯 調整 Prompt，讓 AI 更有溫度
+        prompt = f"你是一個專業單車助理。請根據以下資料，整理成一段溫馨且包含**所有站點**的 LINE 監測報告。標題要醒目，並用 Emoji 區分有車與沒車。資料如下：{raw_data}"
         
         try:
-            # 🚀 呼叫 Gemini
-            result = model.generate_content(prompt)
+            # 🚀 關鍵修改：使用 generate_content 且「不」手動指定 API 版本
+            # 這是目前最能避開 v1beta 衝突的寫法
+            response = model.generate_content(prompt)
             
-            # 💡 增加「空值檢查」，確保 AI 有回話
-            if not result or not hasattr(result, 'text'):
-                raise ValueError("AI 回傳了空內容")
+            # 💡 增加「強大」的檢查機制
+            if response and response.text:
+                ai_message = response.text.strip()
+                # 預防訊息過長
+                if len(ai_message) > 4000:
+                    ai_message = ai_message[:4000] + "..."
+                send_line_message(ai_message)
+                print("Success! AI Enhanced message sent.")
+            else:
+                # 如果 AI 回傳是空值，丟出錯誤去執行備案
+                raise ValueError("Empty response from Gemini")
                 
-            ai_message = result.text.strip()
-            
-            # 如果訊息太長，進行截斷防止 LINE 報錯
-            if len(ai_message) > 4000:
-                ai_message = ai_message[:4000] + "..."
-                
-            send_line_message(ai_message)
-            print("Success! AI Enhanced message sent.")
-            
         except Exception as e:
-            print(f"Gemini Error: {e}")
-            # 🛡️ 大師最強備案：AI 壞掉時發送簡易列表
-            backup = "🚲 Moovo 完整報告：\n"
+            # 🛡️ 這裡就是您看到的「緊急備案」
+            print(f"Gemini Error (Fallback triggered): {e}")
+            backup_msg = "🚲 Moovo 完整報告：\n"
             for item in raw_data:
                 status = "✅" if int(item['bikes']) > 0 else "❌"
-                backup += f"{status} {item['name']}: {item['bikes']} 輛\n"
-            send_line_message(backup)
-            
+                backup_msg += f"{status} {item['name']}: {item['bikes']} 輛\n"
+            send_line_message(backup_msg)
     else:
         print("Failed to get data.")
 
