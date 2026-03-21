@@ -20,9 +20,8 @@ jobs:
 
       - name: 3. 安裝工具
         run: |
-          pip install --upgrade pip
-          # 🎯 徹底移除舊版，安裝新版 google-genai
-          pip uninstall -y google-generativeai
+          python -m pip install --upgrade pip
+          pip uninstall -y google-generativeai || true
           pip install requests playwright google-genai
           playwright install chromium
 
