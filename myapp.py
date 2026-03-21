@@ -105,23 +105,25 @@ async def main():
 """
         
         try:
-            # 🚀 這裡前面必須有正確的縮排 (通常是 8 個空格或 2 個 Tab)
+            # 🚀 1. 呼叫 AI (注意這裡有縮排)
             response = client.models.generate_content(
                 model="gemini-1.5-flash",
                 contents=prompt
             )
             
+            # 🚀 2. 處理結果 (這段現在也被鎖進 try 裡面保護了)
             if response and response.text:
                 ai_message = response.text.strip()
                 if len(ai_message) > 4000:
                     ai_message = ai_message[:4000] + "\n...(訊息過長已截斷)"
+                
                 send_line_message(ai_message)
                 print("Success! AI Enhanced message sent.")
             else:
                 raise ValueError("Gemini 回傳內容為空")
                 
         except Exception as e:
-            # 🛡️ 這裡前面也要有縮排
+            # 🛡️ 只要上面任何一步失敗 (包含 404)，都會跳到這裡
             print(f"Gemini Error (啟動緊急備案): {e}")
             backup_msg = "🚲 Moovo 場站簡易報告 (AI 休息中)：\n"
             for item in raw_data:
