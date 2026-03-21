@@ -1,20 +1,14 @@
 import asyncio
 import os
 import requests
+import json
 from datetime import datetime
 from playwright.async_api import async_playwright
-from google import genai
 
-# ================= 1. 配置與初始化 =================
+# ================= 1. 配置 =================
 LINE_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_TARGET = os.getenv("LINE_USER_ID")
 AI_KEY = os.getenv("GEMINI_API_KEY")
-
-# 🔐 初始化 AI 客戶端 (確保縮排正確且指定 v1 版本)
-try:
-    client = genai.Client(api_key=AI_KEY, http_options={'api_version': 'v1'})
-except Exception as e:
-    print(f"Client Setup Error: {e}")
 
 # ================= 2. 功能函數 =================
 def send_line(msg):
@@ -22,6 +16,19 @@ def send_line(msg):
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"}
     payload = {"to": LINE_TARGET, "messages": [{"type": "text", "text": msg}]}
     requests.post(url, headers=headers, json=payload)
+
+def call_gemini_direct(prompt):
+    # 🎯 絕招：直接對準 Google 的正式網址發射，跳過套件的 Bug
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={AI_KEY}"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    if response.status_code == 200:
+        return response.json()['candidates'][0]['content']['parts'][0]['text']
+    else:
+        raise Exception(f"API 報錯: {response.text}")
 
 async def scrape_moovo():
     async with async_playwright() as p:
@@ -56,14 +63,11 @@ async def main():
         prompt = f"你是一個專業單車助理。請根據資料整理成溫馨的 LINE 報告。標題醒目，用 Emoji 區分有車✅與沒車❌，並列出所有場站。資料：{raw_data}"
         
         try:
-            # 🚀 AI 美化處理 (嚴格縮排)
-            response = client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=prompt
-            )
+            # 🚀 使用手動擋呼叫 AI
+            final_msg = call_gemini_direct(prompt)
             
-            if response and response.text:
-                final_msg = response.text.strip()
+            if final_msg:
+                final_msg = final_msg.strip()
                 if len(final_msg) > 4000: final_msg = final_msg[:4000] + "..."
                 send_line(final_msg)
                 print("Success: AI 報告已發送")
@@ -71,7 +75,6 @@ async def main():
                 raise ValueError("AI 回傳空值")
                 
         except Exception as e:
-            # 🛡️ 緊急備案 (嚴格縮排)
             print(f"Fallback Error: {e}")
             backup = "🚲 Moovo 報告 (AI 休息中):\n"
             for item in raw_data:
