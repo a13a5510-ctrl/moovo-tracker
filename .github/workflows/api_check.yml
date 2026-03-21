@@ -1,0 +1,25 @@
+name: 🛡️ API 配額私密偵察
+
+on:
+  # 🎯 關鍵：這代表「手動觸發」，不會定時執行
+  workflow_dispatch:
+
+jobs:
+  check-quota:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. 取得程式碼
+        uses: actions/checkout@v4
+
+      - name: 2. 設定 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 3. 安裝必要組件
+        run: pip install requests
+
+      - name: 4. 執行配額偵察
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python check_quota.py
