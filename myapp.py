@@ -19,11 +19,30 @@ def send_line(msg):
 
 def call_gemini_direct(prompt):
     # 🎯 絕招：直接對準 Google 的正式網址發射，跳過套件的 Bug
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={AI_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={AI_KEY}"
+    
     headers = {"Content-Type": "application/json"}
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
     }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        
+        # 如果 v1 還是報錯，我們最後嘗試一個備案路徑
+        if response.status_code != 200:
+            print(f"[Debug] V1 嘗試失敗，狀態碼: {response.status_code}")
+            return None
+            
+        res_json = response.json()
+        return res_json['candidates'][0]['content']['parts'][0]['text']
+        
+    except Exception as e:
+        print(f"[Debug] API 請求發生異常: {e}")
+        return None
+    
     response = requests.post(url, headers=headers, json=payload)
     if response.status_code == 200:
         return response.json()['candidates'][0]['content']['parts'][0]['text']
