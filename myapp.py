@@ -101,25 +101,23 @@ async def main():
 """
         
         try:
-            # 🚀 2026 全新呼叫語法，徹底閃避 404 錯誤
-response = client.models.generate_content(
-    model="gemini-1.5-flash", 
-    contents=prompt
-)
+            # 🚀 這裡前面必須有正確的縮排 (通常是 8 個空格或 2 個 Tab)
+            response = client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=prompt
+            )
             
             if response and response.text:
                 ai_message = response.text.strip()
-                # 防止訊息過長 (LINE 限制為 5000 字)
                 if len(ai_message) > 4000:
                     ai_message = ai_message[:4000] + "\n...(訊息過長已截斷)"
-                
                 send_line_message(ai_message)
                 print("Success! AI Enhanced message sent.")
             else:
                 raise ValueError("Gemini 回傳內容為空")
                 
         except Exception as e:
-            # 🛡️ 救災系統：AI 故障時的備案
+            # 🛡️ 這裡前面也要有縮排
             print(f"Gemini Error (啟動緊急備案): {e}")
             backup_msg = "🚲 Moovo 場站簡易報告 (AI 休息中)：\n"
             for item in raw_data:
