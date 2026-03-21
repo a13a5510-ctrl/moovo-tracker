@@ -78,6 +78,15 @@ async def scrape_moovo():
 
 # ================= 3. 主流程 =================
 async def main():
+    # 🔍 大師偵錯補丁：檢查金鑰格式
+    if AI_KEY:
+        prefix = AI_KEY[:4]
+        print(f"[Diagnostics] 金鑰開頭為: {prefix}")
+        if prefix != "AIza":
+            print("❌ 警告：金鑰開頭應該是 AIza (大寫 I)，目前的看起來不對！")
+        else:
+            print("✅ 金鑰開頭格式正確。")
+    
     print(f"[System] 啟動監測: {datetime.now()}")
     raw_data = await scrape_moovo()
     
