@@ -21,13 +21,12 @@ def send_line(msg):
         print(f"LINE 發送異常: {e}")
 
 def call_gemini_direct(prompt):
-    # 🎯 聖誕樹對位：正式版 V1 地址
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={AI_KEY}"
+    # 🎯 既然金鑰修正了，我們換回最快、最省配額的 gemini-1.5-flash
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={AI_KEY}"
+    
     headers = {"Content-Type": "application/json"}
     payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
+        "contents": [{"parts": [{"text": prompt}]}]
     }
     
     try:
@@ -36,6 +35,7 @@ def call_gemini_direct(prompt):
             res_json = response.json()
             return res_json['candidates'][0]['content']['parts'][0]['text']
         else:
+            # 💡 這裡會幫我們確認金鑰是否生效
             print(f"[Debug] API 失敗回傳: {response.text}")
             return None
     except Exception as e:
