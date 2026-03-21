@@ -8,7 +8,6 @@ on:
 jobs:
   run-bot:
     runs-on: windows-latest
-    # 🎯 授權寫入權限，否則無法記憶上次數據
     permissions:
       contents: write
     steps:
@@ -34,11 +33,10 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: python myapp.py
 
-      # 🎯 5. 記憶數據：將本次結果存檔
       - name: 5. 提交記憶數據
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add last_data.json
+          git add last_data.json || exit 0
           git commit -m "Update last_data.json [skip ci]" || exit 0
           git push
