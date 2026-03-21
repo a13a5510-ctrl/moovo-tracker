@@ -86,6 +86,9 @@ async def main():
         
         try:
             result = model.generate_content(prompt)
+            # 💡 增加一個「空值檢查」
+    if not result or not hasattr(result, 'text'):
+        raise ValueError("AI 回傳了空內容")
             if result and result.text:
                 ai_message = result.text.strip()
                 if len(ai_message) > 4000: ai_message = ai_message[:4000] + "..."
