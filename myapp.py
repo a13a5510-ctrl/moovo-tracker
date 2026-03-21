@@ -21,33 +21,36 @@ def send_line(msg):
         print(f"LINE 發送異常: {e}")
 
 def call_gemini_direct(prompt):
-    # 🎯 關鍵補丁 1：去除金鑰前後可能存在的隱形空格
     api_key = AI_KEY.strip()
-    
-    # 🎯 關鍵補丁 2：換成最正式、絕對不會被拒絕的 v1 正式版網址
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+    # 🎯 嘗試清單：按順序測試哪扇門能開
+    endpoints = [
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={api_key}",
+        f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}",
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={api_key}"
+    ]
     
     headers = {"Content-Type": "application/json"}
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
-    }
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            res_json = response.json()
-            return res_json['candidates'][0]['content']['parts'][0]['text']
-        else:
-            # 💡 大師的「抓鬼」偵錯：萬一又失敗，讓我們看看到底是哪間大門不開
-            print(f"[Debug] 嘗試 v1 大門失敗，狀態碼: {response.status_code}")
-            print(f"[Debug] 回傳內容: {response.text}")
-            return None
-    except Exception as e:
-        print(f"[Debug] 請求發生異常: {e}")
-        return None
+    for url in endpoints:
+        try:
+            version = "v1beta" if "v1beta" in url else "v1"
+            model_name = "flash-latest" if "flash-latest" in url else "flash"
+            if "pro" in url: model_name = "pro"
+            
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                print(f"[Success] 成功通過 {version} 呼叫 {model_name}！")
+                res_json = response.json()
+                return res_json['candidates'][0]['content']['parts'][0]['text']
+            else:
+                print(f"[Debug] {version}/{model_name} 嘗試失敗，錯誤碼: {response.status_code}")
+                # 繼續嘗試下一個 endpoint
+        except Exception as e:
+            print(f"[Debug] 請求異常: {e}")
+    
+    return None
 
 async def scrape_moovo():
     async with async_playwright() as p:
