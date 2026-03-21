@@ -1,11 +1,11 @@
 {
     "和平東路敦化南路口": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     },
     "大安路二段47號": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     },
     "捷運大安站": {
         "bikes": 1,
@@ -17,11 +17,11 @@
     },
     "成功國宅": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     },
     "捷運科技大樓站": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     },
     "世貿大樓": {
         "bikes": 1,
@@ -29,15 +29,15 @@
     },
     "捷運信義安和站": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     },
     "華南銀行": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     },
     "和平東路二段51號": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     },
     "大安森林公園地下停車場": {
         "bikes": 2,
@@ -53,7 +53,7 @@
     },
     "四維公園": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     },
     "大安高工": {
         "bikes": 1,
@@ -61,7 +61,7 @@
     },
     "建國南路二段11巷28號": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     },
     "新龍公園": {
         "bikes": 1,
@@ -89,7 +89,7 @@
     },
     "辛亥路一段89號": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     },
     "台大社科院圖書館前": {
         "bikes": 5,
@@ -97,7 +97,7 @@
     },
     "台大天文數學館北側": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     },
     "水源快速道路龍德天下站": {
         "bikes": 1,
@@ -105,6 +105,6 @@
     },
     "快速道路道路溪洲街口": {
         "bikes": 0,
-        "cold_count": 1
+        "cold_count": 2
     }
 }
