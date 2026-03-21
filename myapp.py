@@ -21,36 +21,60 @@ def send_line(msg):
         print(f"LINE 發送異常: {e}")
 
 def call_gemini_direct(prompt):
-    api_key = AI_KEY.strip()
-    # 🎯 嘗試清單：按順序測試哪扇門能開
-    endpoints = [
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={api_key}",
-        f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}",
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={api_key}"
-    ]
+    # 🎯 徹底清理金鑰（移除空格、換行、甚至引號）
+    api_key = AI_KEY.strip().replace('"', '').replace("'", "")
     
-    headers = {"Content-Type": "application/json"}
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    # 🔍 第一步：向 Google 索取「模型清單」，看看這把金鑰到底能看見誰
+    list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
     
-    for url in endpoints:
-        try:
-            version = "v1beta" if "v1beta" in url else "v1"
-            model_name = "flash-latest" if "flash-latest" in url else "flash"
-            if "pro" in url: model_name = "pro"
-            
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
-            
-            if response.status_code == 200:
-                print(f"[Success] 成功通過 {version} 呼叫 {model_name}！")
-                res_json = response.json()
-                return res_json['candidates'][0]['content']['parts'][0]['text']
-            else:
-                print(f"[Debug] {version}/{model_name} 嘗試失敗，錯誤碼: {response.status_code}")
-                # 繼續嘗試下一個 endpoint
-        except Exception as e:
-            print(f"[Debug] 請求異常: {e}")
-    
-    return None
+    try:
+        print("[Diagnostics] 正在檢查模型可用清單...")
+        list_res = requests.get(list_url, timeout=20)
+        
+        if list_res.status_code != 200:
+            print(f"❌ 金鑰權限檢查失敗，狀態碼: {list_res.status_code}")
+            print(f"內容: {list_res.text}")
+            return None
+        
+        models_data = list_res.json()
+        # 抓出清單中所有模型的 ID
+        available_models = [m['name'] for m in models_data.get('models', [])]
+        print(f"✅ 偵測到可用模型: {len(available_models)} 個")
+
+        # 🎯 第二步：從清單中挑選一個最強的來用
+        target_model = ""
+        preferences = ["models/gemini-1.5-flash", "models/gemini-1.5-pro", "models/gemini-pro"]
+        
+        for p in preferences:
+            if p in available_models:
+                target_model = p
+                break
+        
+        if not target_model and available_models:
+            target_model = available_models[0] # 沒魚蝦也好，抓第一個
+
+        if not target_model:
+            print("❌ 這把金鑰完全看不到任何 Gemini 模型！")
+            return None
+
+        print(f"🚀 決定使用模型: {target_model}")
+        
+        # 🎯 第三步：發送請求
+        gen_url = f"https://generativelanguage.googleapis.com/v1beta/{target_model}:generateContent?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        
+        gen_res = requests.post(gen_url, headers=headers, json=payload, timeout=30)
+        
+        if gen_res.status_code == 200:
+            return gen_res.json()['candidates'][0]['content']['parts'][0]['text']
+        else:
+            print(f"❌ 模型呼叫失敗: {gen_res.text}")
+            return None
+
+    except Exception as e:
+        print(f"❌ 診斷過程發生異常: {e}")
+        return None
 
 async def scrape_moovo():
     async with async_playwright() as p:
