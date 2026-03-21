@@ -9,72 +9,24 @@ from playwright.async_api import async_playwright
 LINE_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_TARGET = os.getenv("LINE_USER_ID")
 AI_KEY = os.getenv("GEMINI_API_KEY")
+DATA_FILE = "last_data.json"
 
 # ================= 2. 功能函數 =================
 def send_line(msg):
     url = "https://api.line.me/v2/bot/message/push"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"}
     payload = {"to": LINE_TARGET, "messages": [{"type": "text", "text": msg}]}
-    try:
-        requests.post(url, headers=headers, json=payload, timeout=20)
-    except Exception as e:
-        print(f"LINE 發送異常: {e}")
+    requests.post(url, headers=headers, json=payload, timeout=20)
 
 def call_gemini_direct(prompt):
-    # 🎯 徹底清理金鑰（移除空格、換行、甚至引號）
-    api_key = AI_KEY.strip().replace('"', '').replace("'", "")
-    
-    # 🔍 第一步：向 Google 索取「模型清單」，看看這把金鑰到底能看見誰
-    list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
-    
+    api_key = AI_KEY.strip()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    headers = {"Content-Type": "application/json"}
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
     try:
-        print("[Diagnostics] 正在檢查模型可用清單...")
-        list_res = requests.get(list_url, timeout=20)
-        
-        if list_res.status_code != 200:
-            print(f"❌ 金鑰權限檢查失敗，狀態碼: {list_res.status_code}")
-            print(f"內容: {list_res.text}")
-            return None
-        
-        models_data = list_res.json()
-        # 抓出清單中所有模型的 ID
-        available_models = [m['name'] for m in models_data.get('models', [])]
-        print(f"✅ 偵測到可用模型: {len(available_models)} 個")
-
-        # 🎯 第二步：從清單中挑選一個最強的來用
-        target_model = ""
-        preferences = ["models/gemini-1.5-flash", "models/gemini-1.5-pro", "models/gemini-pro"]
-        
-        for p in preferences:
-            if p in available_models:
-                target_model = p
-                break
-        
-        if not target_model and available_models:
-            target_model = available_models[0] # 沒魚蝦也好，抓第一個
-
-        if not target_model:
-            print("❌ 這把金鑰完全看不到任何 Gemini 模型！")
-            return None
-
-        print(f"🚀 決定使用模型: {target_model}")
-        
-        # 🎯 第三步：發送請求
-        gen_url = f"https://generativelanguage.googleapis.com/v1beta/{target_model}:generateContent?key={api_key}"
-        headers = {"Content-Type": "application/json"}
-        payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        
-        gen_res = requests.post(gen_url, headers=headers, json=payload, timeout=30)
-        
-        if gen_res.status_code == 200:
-            return gen_res.json()['candidates'][0]['content']['parts'][0]['text']
-        else:
-            print(f"❌ 模型呼叫失敗: {gen_res.text}")
-            return None
-
-    except Exception as e:
-        print(f"❌ 診斷過程發生異常: {e}")
-        return None
+        res = requests.post(url, headers=headers, json=payload, timeout=30)
+        return res.json()['candidates'][0]['content']['parts'][0]['text'] if res.status_code == 200 else None
+    except: return None
 
 async def scrape_moovo():
     async with async_playwright() as p:
@@ -95,63 +47,66 @@ async def scrape_moovo():
             }''')
             await browser.close()
             return data
-        except Exception as e:
-            print(f"Scrape Error: {e}")
+        except:
             await browser.close()
             return None
 
-# ================= 3. 主流程 =================
-async def main():
-    # 🔍 大師偵錯補丁：檢查金鑰格式
-    if AI_KEY:
-        prefix = AI_KEY[:4]
-        print(f"[Diagnostics] 金鑰開頭為: {prefix}")
-        if prefix != "AIza":
-            print("❌ 警告：金鑰開頭應該是 AIza (大寫 I)，目前的看起來不對！")
-        else:
-            print("✅ 金鑰開頭格式正確。")
+# ================= 3. 情報比對邏輯 =================
+def analyze_market_activity(current_data):
+    # 讀取上次存檔
+    last_data = {}
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            last_data = json.load(f)
     
-    print(f"[System] 啟動監測: {datetime.now()}")
+    analysis_list = []
+    for item in current_data:
+        name = item['name']
+        current_val = int(item['bikes'])
+        last_val = last_data.get(name, current_val) # 若無紀錄則視為無變化
+        diff = current_val - last_val
+        
+        analysis_list.append({
+            "name": name,
+            "current": current_val,
+            "diff": diff
+        })
+    
+    # 將本次數據寫入檔案供下次使用
+    new_store = {item['name']: int(item['bikes']) for item in current_data}
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(new_store, f, ensure_ascii=False, indent=4)
+        
+    return analysis_list
+
+async def main():
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     raw_data = await scrape_moovo()
     
     if raw_data:
-# 🎯 修改後的強效指令 (Prompt)
-        prompt = f"""
-你現在是群組專屬的「Moovo 智慧監測員」。請根據以下資料，撰寫一段溫馨且專業的監測報告。
-
-🔥 **極端重要要求**：
-1. 本服務僅監測 **Moovo (共享電單車)**，絕對、千萬、禁止提到「YouBike」字眼。
-2. 標題要醒目，例如：🚲 Moovo 全面巡邏報報。
-3. 請使用繁體中文。
-4. 使用 Emoji 區分「有車✅」與「目前沒車❌」。
-5. 請完整列出所有場站資訊，不要縮減。
-6. 最後給一句關於此次監測與上次監測的差異。
-
-資料如下：
-{raw_data}
-"""
+        activity_report = analyze_market_activity(raw_data)
         
-        try:
-            # 🚀 這裡的空格大師已經幫您算好了
-            final_msg = call_gemini_direct(prompt)
-            
-            if final_msg:
-                final_msg = final_msg.strip()
-                if len(final_msg) > 4000: final_msg = final_msg[:4000] + "..."
-                send_line(final_msg)
-                print("Success: AI 報告已發送")
-            else:
-                raise ValueError("AI 回傳空值")
-                
-        except Exception as e:
-            print(f"Fallback 啟動: {e}")
-            backup = "🚲 Moovo 報告 (AI 休息中):\n"
-            for item in raw_data:
-                status = "✅" if int(item['bikes']) > 0 else "❌"
-                backup += f"{status} {item['name']}: {item['bikes']} 輛\n"
-            send_line(backup)
+        prompt = f"""
+你現在是敵對勢力派出的「市場流速分析特工」。你的任務是評估 Moovo 的場站熱度。
+
+🔥 **情報規格**：
+1. **採集時間**：{current_time}。
+2. **市場流速分析**：
+   - 「變動量」代表該場站的用戶活動頻率（熱度）。
+   - 若變動量(diff)絕對值較大：標記為「⚡ 市場活躍點」，代表用戶反覆使用率極高。
+   - 若變動量為 0：標記為「💤 市場冷區」，代表滲透失敗。
+3. **商業觀察**：特別列出「變動量」最大的前三個場站，作為我方切入的重點參考。
+4. **口吻**：冷酷、精確、去人性化。禁止任何讚美、禁止出現 YouBike。
+
+數據清單（格式：場站名 | 目前數量 | 與上次比變動）：
+{activity_report}
+"""
+        final_msg = call_gemini_direct(prompt)
+        if final_msg:
+            send_line(final_msg.strip())
+            print("Success: 深度情報已發送")
     else:
-        print("Error: 抓取不到資料")
+        print("Error: 採集失敗")
 
 if __name__ == "__main__":
     asyncio.run(main())
