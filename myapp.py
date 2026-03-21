@@ -76,35 +76,43 @@ async def main():
         print(f"[System] Scraped {len(raw_data)} stations.")
         
         prompt = f"""
-        你是一個專業的單車助理。請根據以下資料，撰寫一段溫馨且包含**所有站點**的 LINE 監測報告。
-        要求：
-        1. 使用繁體中文。
-        2. 加上 Emoji（✅ 有車, ❌ 沒車）。
-        3. 必須完整列出所有站點，不要省略。
-        資料：{raw_data}
-        """
+你是一個專業的單車助理。請根據以下單車資料，撰寫一段溫馨且包含**所有站點**的 LINE 監測報告。
+要求：
+1. 使用繁體中文。
+2. 加上 Emoji（✅ 有車, ❌ 沒車）。
+3. 必須完整列出所有站點，不要省略。
+資料：{raw_data}
+"""
         
         try:
+            # 🚀 呼叫 Gemini
             result = model.generate_content(prompt)
-            # 💡 增加一個「空值檢查」
-    if not result or not hasattr(result, 'text'):
-        raise ValueError("AI 回傳了空內容")
-            if result and result.text:
-                ai_message = result.text.strip()
-                if len(ai_message) > 4000: ai_message = ai_message[:4000] + "..."
-                send_line_message(ai_message)
-                print("Success!")
-            else:
-                raise ValueError("Empty AI result")
+            
+            # 💡 增加「空值檢查」，確保 AI 有回話
+            if not result or not hasattr(result, 'text'):
+                raise ValueError("AI 回傳了空內容")
+                
+            ai_message = result.text.strip()
+            
+            # 如果訊息太長，進行截斷防止 LINE 報錯
+            if len(ai_message) > 4000:
+                ai_message = ai_message[:4000] + "..."
+                
+            send_line_message(ai_message)
+            print("Success! AI Enhanced message sent.")
+            
         except Exception as e:
             print(f"Gemini Error: {e}")
+            # 🛡️ 大師最強備案：AI 壞掉時發送簡易列表
             backup = "🚲 Moovo 完整報告：\n"
             for item in raw_data:
                 status = "✅" if int(item['bikes']) > 0 else "❌"
-                backup += f"{status} {item['name']}: {item['bikes']}\n"
+                backup += f"{status} {item['name']}: {item['bikes']} 輛\n"
             send_line_message(backup)
+            
     else:
         print("Failed to get data.")
 
+# 這兩行要放在檔案的最底部，前面不要有空格
 if __name__ == "__main__":
     asyncio.run(main())
