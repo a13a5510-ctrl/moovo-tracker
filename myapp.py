@@ -14,7 +14,11 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # 🔐 使用最新版 Client 呼叫方式，徹底解決 404 問題
 try:
-    client = genai.Client(api_key=GEMINI_API_KEY, http_options={'api_version': 'v1'})
+# 🎯 這段設定會強制關閉所有自動轉換，直接走最穩定的通道
+client = genai.Client(
+    api_key=GEMINI_API_KEY,
+    http_options={'api_version': 'v1'}
+)
 except Exception as e:
     print(f"AI Client Setup Error: {e}")
 
