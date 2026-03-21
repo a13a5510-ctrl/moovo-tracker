@@ -22,9 +22,8 @@ jobs:
 
       - name: 3. 安裝工具
         run: |
-          # 🎯 強制升級這兩個關鍵套件
           pip install --upgrade pip
-          pip install --upgrade requests playwright google-generativeai
+          pip install --upgrade requests playwright google-genai
           playwright install chromium
 
       - name: 4. 啟動機器人
