@@ -8,9 +8,9 @@ from playwright.async_api import async_playwright
 # [System] 任務日誌
 def spy_log(msg): print(f"{msg}", flush=True)
 
-# 🎯 台北時間 (UTC+8)
-current_time_tp = datetime.utcnow() + timedelta(hours=8)
-spy_log(f"[System] 偵察任務啟動: {current_time_tp.strftime('%Y-%m-%d %H:%M:%S')}")
+# 🎯 台北時間 (UTC+8) 校正
+current_time_tp = (datetime.utcnow() + timedelta(hours=8)).strftime("%H:%M")
+spy_log(f"[System] 偵察任務啟動: {current_time_tp}")
 
 # ================= 1. 配置 =================
 LINE_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
@@ -30,13 +30,23 @@ def send_line(msg):
 
 def call_gemini_direct(prompt):
     api_key = AI_KEY.strip()
-    # 嘗試多重路徑避開 404
-    for model in ["models/gemini-1.5-flash", "models/gemini-2.0-flash"]:
-        url = f"https://generativelanguage.googleapis.com/v1beta/{model}:generateContent?key={api_key}"
+    # 🎯 根據偵察報告 (image_c0c88a) 更新精確路徑
+    # 優先使用 2.5-flash，這是目前最新最穩定的節點
+    target_models = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    
+    for m in target_models:
+        # 使用 v1beta 搭配正確的 Model ID
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
         try:
             res = requests.post(url, headers={"Content-Type": "application/json"}, 
                                 json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=30)
-            if res.status_code == 200: return res.json()['candidates'][0]['content']['parts'][0]['text']
+            if res.status_code == 200:
+                spy_log(f"[AI] {m} 覺醒成功。")
+                return res.json()['candidates'][0]['content']['parts'][0]['text']
+            elif res.status_code == 429:
+                spy_log(f"[AI] {m} 頻率限制 (429)，請勿頻繁重試。")
+            else:
+                spy_log(f"[AI] {m} 狀態碼: {res.status_code}")
         except: continue
     return None
 
@@ -56,78 +66,70 @@ async def scrape_moovo():
             await browser.close()
             return data
         except:
-            await browser.close()
-            return None
+            await browser.close(); return None
 
-def analyze_with_history(current_data):
+def analyze_logic(current_data):
     history = {}
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r", encoding="utf-8") as f: history = json.load(f)
         except: history = {}
     
-    changed = []
-    unchanged = []
-    new_history = {}
-
+    changed, unchanged, new_history = [], [], {}
+    max_abs_diff = 0
+    
     for item in current_data:
         name = item['name']
         curr = int(item['bikes'])
-        prev = history.get(name, {}).get("bikes", curr) if isinstance(history.get(name), dict) else int(history.get(name, curr))
+        prev_data = history.get(name, {})
+        prev = prev_data.get("bikes", curr) if isinstance(prev_data, dict) else int(prev_data)
         
         diff = curr - prev
+        abs_diff = abs(diff)
+        if abs_diff > max_abs_diff: max_abs_diff = abs_diff
+        
         diff_str = f"{'+' if diff > 0 else ''}{diff}"
+        info = {"name": name, "curr": curr, "diff": diff_str, "abs_diff": abs_diff}
         
-        station_info = {"name": name, "curr": curr, "diff": diff_str}
-        
-        if diff != 0:
-            changed.append(station_info)
-        else:
-            unchanged.append(station_info)
-        
+        if diff != 0: changed.append(info)
+        else: unchanged.append(info)
         new_history[name] = {"bikes": curr}
+
+    for item in changed:
+        if item['abs_diff'] == max_abs_diff and max_abs_diff > 0:
+            item['hot'] = True
     
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(new_history, f, ensure_ascii=False, indent=4)
-        
     return changed, unchanged
 
 async def main():
-    time_str = (datetime.utcnow() + timedelta(hours=8)).strftime("%H:%M")
     raw_data = await scrape_moovo()
-    
     if raw_data:
-        changed, unchanged = analyze_with_history(raw_data)
-        
+        changed, unchanged = analyze_logic(raw_data)
         prompt = f"""
-你現在是特級情報員。請撰寫 Moovo 監測報告。
-🕵️ 指令：
-1. **結構**：分兩區。第一區「⚡ 數據變動場站」，第二區「⚪ 無變動場站」。
-2. **格式**：每站一行。站名:台數 (較上次:變動)。
-3. **語言**：100% 繁體中文。嚴禁讚美，口吻冷酷。
-4. **時間**：{time_str}。
-情報內容：
-變動站點：{changed}
-穩定站點：{unchanged}
+你現在是冷酷特工分析官。請撰寫監測報告。
+指令：
+1. **結構**：先列「⚡ 變動場站」，後列「⚪ 穩定場站」。
+2. **標註**：若場站數據中有 'hot':True，在名稱前加上 🔥。
+3. **格式**：每站一行。站名:台數 (較上次:變動)。
+4. **語言**：100% 繁體中文。嚴禁多餘廢話。時間：{current_time_tp}。
+數據：變動:{changed}，穩定:{unchanged}
 """
         final_msg = call_gemini_direct(prompt)
         
         if final_msg:
             send_line(f"[🧠 AI 深度情報]\n" + final_msg.strip())
         else:
-            # 🎯 備援模式：手動分類並移除冷區
-            spy_log("[System] AI 離線，啟動直覺分類備援模式...")
-            report = f"【⚠️ AI 監控離線】時間 {time_str}\n\n"
-            
-            report += "⚡ 【數據變動場站】\n"
-            if not changed: report += "   (無變動數據)\n"
-            for item in changed:
-                report += f"   {item['name']}: {item['curr']}台 (較上次: {item['diff']})\n"
-            
-            report += "\n⚪ 【無變動場站】\n"
-            for item in unchanged:
-                report += f"   {item['name']}: {item['curr']}台 (較上次: 0)\n"
-                
+            # 備援模式
+            report = f"【📡 原始數據監測】時間 {current_time_tp}\n\n"
+            report += "⚡ 【變動場站】\n"
+            if not changed: report += " (無變動)\n"
+            for i in changed:
+                p = "🔥" if i.get('hot') else " "
+                report += f" {p}{i['name']}:{i['curr']} (較上次:{i['diff']})\n"
+            report += "\n⚪ 【穩定場站】\n"
+            for i in unchanged: report += f"   {i['name']}:{i['curr']} (較上次:0)\n"
             send_line(report)
     else: spy_log("[System] 抓取失敗")
 
