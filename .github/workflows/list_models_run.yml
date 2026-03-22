@@ -1,0 +1,24 @@
+name: 📡 偵察可用模型清單
+
+on:
+  workflow_dispatch: # 讓您可以手動點擊按鈕執行
+
+jobs:
+  list-models:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. 取得程式碼
+        uses: actions/checkout@v4
+
+      - name: 2. 設定 Python 環境
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 3. 安裝必要組件
+        run: pip install requests
+
+      - name: 4. 執行模型偵察
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python list_models.py
