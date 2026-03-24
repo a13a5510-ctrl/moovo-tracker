@@ -25,14 +25,14 @@ EXCEL_FILE = f"Moovo_Report_{file_date}.xlsx"
 # ================= 2. 功能函數 =================
 
 def send_line(msg, file_url=None):
-    """原子化發送協定：拆分文字與檔案，確保情報 100% 抵達"""
+    """特工通訊系統：文字、連結、檔案三軌發射"""
     url = "https://api.line.me/v2/bot/message/push"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"}
     
-    # --- 步驟 1：發送核心文字情報 (含備援下載連結) ---
+    # --- 1. 文字消息 (含備援網址) ---
     full_text = msg
     if file_url:
-        full_text += f"\n\n📂 完整情報表下載連結：\n{file_url}"
+        full_text += f"\n\n📂 完整情報表下載：\n{file_url}"
     
     payload_text = {"to": LINE_TARGET, "messages": [{"type": "text", "text": full_text}]}
     
@@ -42,59 +42,63 @@ def send_line(msg, file_url=None):
         if res_text.status_code == 200:
             spy_log("✅ 文字情報已送達")
         else:
-            spy_log(f"❌ 文字發送失敗 ({res_text.status_code}): {res_text.text}")
+            spy_log(f"❌ 文字發送失敗: {res_text.text}")
     except Exception as e:
-        spy_log(f"🚫 文字路徑物理損壞: {e}")
+        spy_log(f"🚫 文字路徑損壞: {e}")
 
-    # --- 步驟 2：嘗試發送檔案掛載訊息 (獨立請求) ---
+    # --- 2. 獨立發送檔案消息 (若失敗不影響文字) ---
     if file_url:
+        # 強制清理網址中的換行與空白
+        clean_url = file_url.strip().replace("\n", "").replace("\r", "")
+        spy_log(f"[Line] 嘗試掛載檔案圖標，網址: {clean_url}")
+        
         payload_file = {
             "to": LINE_TARGET,
             "messages": [{
                 "type": "file",
                 "fileName": EXCEL_FILE,
-                "originalContentUrl": file_url
+                "originalContentUrl": clean_url
             }]
         }
         try:
-            spy_log("[Line] 正在嘗試掛載檔案圖示...")
             res_file = requests.post(url, headers=headers, json=payload_file, timeout=20)
             if res_file.status_code == 200:
                 spy_log("✅ 檔案圖示已掛載")
             else:
-                spy_log(f"⚠️ 檔案掛載遭拒 ({res_file.status_code})，這不影響文字情報。")
-                spy_log(f"   原因: {res_file.text}")
+                spy_log(f"⚠️ 檔案圖示遭拒 ({res_file.status_code}): {res_file.text}")
         except:
-            spy_log("⚠️ 檔案傳輸路徑異常")
+            spy_log("⚠️ 檔案發射失敗")
 
 def upload_excel(file_path):
-    """三重備援上傳邏輯"""
+    """三重備援上傳：確保 100% 產出 URL"""
     if not os.path.exists(file_path): return None
     spy_log(f"[System] 準備上傳情報檔 ({os.path.getsize(file_path)} bytes)...")
 
-    # 路徑 A: Catbox
+    # A: Catbox (Catbox 通常最穩定，但網址清理要徹底)
     try:
-        spy_log("[System] 嘗試 Catbox...")
+        spy_log("[System] 嘗試 Catbox 傳輸...")
         with open(file_path, 'rb') as f:
             res = requests.post('https://catbox.moe/user/api.php', 
                                 data={'reqtype': 'fileupload'}, 
                                 files={'fileToUpload': f}, timeout=25)
-            if res.status_code == 200 and "https" in res.text: return res.text.strip()
+            if res.status_code == 200 and "https" in res.text:
+                return res.text.strip().replace("\n", "").replace("\r", "")
     except: pass
 
-    # 路徑 B: file.io
+    # B: file.io (1次性下載，有時候會被 LINE 擋)
     try:
-        spy_log("[System] 嘗試 file.io...")
+        spy_log("[System] 嘗試 file.io 傳輸...")
         with open(file_path, 'rb') as f:
             res = requests.post('https://file.io', files={'file': f}, timeout=20)
-            if res.status_code == 200 and res.json().get('success'): return res.json().get('link')
+            if res.status_code == 200 and res.json().get('success'):
+                return res.json().get('link').strip()
     except: pass
     
     return None
 
 def create_beautified_excel(changed, unchanged, filename):
-    """Excel 報表製作"""
-    spy_log("[System] 正在繪製情報表...")
+    """Excel 報表繪製"""
+    spy_log("[System] 正在繪製視覺化情報表...")
     data = []
     for i in changed:
         data.append({"狀態": "⚡ 變動", "場站名稱": i['name'], "現有台數": i['curr'], "變動量": i['diff']})
@@ -147,7 +151,7 @@ async def scrape_moovo():
 async def main():
     raw_data = await scrape_moovo()
     if raw_data:
-        # 數據分析
+        # --- 數據分析 ---
         history = {}
         if os.path.exists(DATA_FILE):
             try:
@@ -169,14 +173,15 @@ async def main():
             if i['abs_diff'] == max_abs_diff and max_abs_diff > 0: i['hot'] = True
         with open(DATA_FILE, "w", encoding="utf-8") as f: json.dump(new_history, f, ensure_ascii=False)
 
-        # Excel 與傳輸
+        # --- Excel 與上傳 ---
         excel_path = create_beautified_excel(changed, unchanged, EXCEL_FILE)
         file_url = upload_excel(excel_path)
         
-        # AI 報告
+        # --- AI 撰寫報告 ---
         prompt = f"撰寫 Moovo 監測報告。指令：分⚡變動(hot加🔥)與⚪穩定區。格式:站名:台數 (較上次:變動)。100%繁體。時間:{current_time_tp}。數據：{changed}, {unchanged}"
         final_msg = call_gemini(prompt)
         
+        # --- 傳送回報 ---
         if final_msg:
             send_line(f"[🧠 AI 深度情報]\n" + final_msg.strip(), file_url)
         else:
