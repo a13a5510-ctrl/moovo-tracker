@@ -45,16 +45,36 @@ def send_line(msg, file_url=None):
     except: spy_log("[Line] 傳輸異常")
 
 def upload_excel(file_path):
-    """將 Excel 上傳到臨時空間獲取 URL 給 LINE 讀取"""
+    """強化版上傳邏輯：多重路徑確保傳輸"""
     spy_log("[System] 正在加密傳輸 Excel 情報檔...")
+    
+    # 檢查檔案是否存在且有內容
+    if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+        spy_log("[System] 錯誤：情報檔為空，取消傳輸")
+        return None
+
+    # 路徑 A: file.io
     try:
         with open(file_path, 'rb') as f:
-            # 使用 file.io 上傳，14天後自動銷毀
-            response = requests.post('https://file.io', files={'file': f})
-            if response.status_code == 200:
-                return response.json().get('link')
+            res = requests.post('https://file.io', files={'file': f}, timeout=20)
+            if res.status_code == 200:
+                return res.json().get('link')
+            else:
+                spy_log(f"[System] 路徑 A 阻塞 (代碼 {res.status_code})")
+    except: pass
+
+    # 路徑 B: catbox.moe (備援傳輸)
+    try:
+        spy_log("[System] 切換備援路徑 B...")
+        with open(file_path, 'rb') as f:
+            res = requests.post('https://catbox.moe/user/api.php', 
+                                data={'reqtype': 'fileupload'}, 
+                                files={'fileToUpload': f}, timeout=20)
+            if res.status_code == 200:
+                return res.text.strip() # Catbox 直接回傳 URL 文本
     except Exception as e:
-        spy_log(f"[System] 上傳失敗: {e}")
+        spy_log(f"[System] 全線傳輸崩潰: {e}")
+    
     return None
 
 def create_beautified_excel(changed, unchanged, filename):
