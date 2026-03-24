@@ -19,45 +19,62 @@ LINE_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_TARGET = os.getenv("LINE_USER_ID")
 AI_KEY = os.getenv("GEMINI_API_KEY")
 DATA_FILE = "last_data.json"
-SHEET_NAME = "Moovo調度監測表"  # 🎯 請確保這跟您的試算表名稱一模一樣
+SHEET_NAME = "Moovo調度監測表"
 
-# ================= 2. 衛星同步功能 =================
+# ================= 2. 衛星同步功能 (修正邏輯) =================
 
 def update_google_sheet(changed, unchanged):
-    """將情報同步至雲端指揮中心"""
     try:
         spy_log("[System] 正在與 Google Sheets 衛星連線...")
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         
-        # 讀取剛剛還原的 creds.json
+        # 讀取秘密金鑰
         creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', scope)
         client = gspread.authorize(creds)
         
         # 開啟試算表
         sh = client.open(SHEET_NAME)
-        worksheet = sh.get_worksheet(0) # 開啟第一個分頁
+        worksheet = sh.get_worksheet(0)
         
         # 準備數據
         headers = ["狀態", "場站名稱", "現有台數", "變動量", "最後更新時間"]
         rows = [headers]
-        
         for i in changed:
-            status = "🔥 變動" if i.get('hot') else "⚡ 變動"
-            rows.append([status, i['name'], i['curr'], i['diff'], current_time_tp])
+            rows.append(["⚡ 變動", i['name'], i['curr'], i['diff'], current_time_tp])
         for i in unchanged:
             rows.append(["⚪ 穩定", i['name'], i['curr'], "0", current_time_tp])
             
-        # 寫入 (清空舊資料並填入新資料)
+        # 執行更新
         worksheet.clear()
         worksheet.update('A1', rows)
         
-        # 取得分享 URL (帶有表格視角)
         sheet_url = f"https://docs.google.com/spreadsheets/d/{sh.id}/edit#gid=0"
-        spy_log(f"✅ 衛星同步成功: {sheet_url}")
+        spy_log(f"✅ 衛星同步成功")
         return sheet_url
     except Exception as e:
-        spy_log(f"❌ 衛星同步失敗: {e}")
+        spy_log(f"⚠️ 衛星連線警告: {e}") # 僅作為警告，不阻斷任務
         return None
+
+def call_gemini(prompt):
+    """鎖定您偵察清單中的 2.5/2.0 版本，並增加 429 友善提示"""
+    api_key = AI_KEY.strip()
+    # 🎯 鎖定您偵察到的精確路徑
+    target_models = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    
+    for m in target_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
+        try:
+            res = requests.post(url, headers={"Content-Type": "application/json"}, 
+                                json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=25)
+            if res.status_code == 200:
+                spy_log(f"[AI] {m} 覺醒成功。")
+                return res.json()['candidates'][0]['content']['parts'][0]['text']
+            elif res.status_code == 429:
+                spy_log(f"[AI] {m} 頻率過快，請休息 10 分鐘再試。")
+            else:
+                spy_log(f"[AI] {m} 狀態不佳 ({res.status_code})")
+        except: continue
+    return None
 
 def send_line(msg, sheet_url=None):
     url = "https://api.line.me/v2/bot/message/push"
@@ -70,17 +87,8 @@ def send_line(msg, sheet_url=None):
     payload = {"to": LINE_TARGET, "messages": [{"type": "text", "text": full_text}]}
     try:
         res = requests.post(url, headers=headers, json=payload, timeout=20)
-        spy_log(f"[Line] 傳送狀態碼: {res.status_code}")
+        spy_log(f"[Line] 報告送達成功")
     except: pass
-
-def call_gemini(prompt):
-    api_key = AI_KEY.strip()
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-    try:
-        res = requests.post(url, headers={"Content-Type": "application/json"}, 
-                            json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=30)
-        if res.status_code == 200: return res.json()['candidates'][0]['content']['parts'][0]['text']
-    except: return None
 
 async def scrape_moovo():
     async with async_playwright() as p:
@@ -101,7 +109,7 @@ async def scrape_moovo():
 async def main():
     raw_data = await scrape_moovo()
     if raw_data:
-        # --- 數據分析 ---
+        # 1. 數據分類
         history = {}
         if os.path.exists(DATA_FILE):
             try:
@@ -119,21 +127,32 @@ async def main():
             if diff != 0: changed.append(info)
             else: unchanged.append(info)
             new_history[name] = {"bikes": curr}
+        
         for i in changed:
             if i['abs_diff'] == max_abs_diff and max_abs_diff > 0: i['hot'] = True
         with open(DATA_FILE, "w", encoding="utf-8") as f: json.dump(new_history, f, ensure_ascii=False)
 
-        # --- Google Sheets 同步 ---
+        # 2. 衛星同步
         sheet_url = update_google_sheet(changed, unchanged)
         
-        # --- AI 報告 ---
+        # 3. AI 報告
         prompt = f"撰寫 Moovo 監測報告。指令：分⚡變動(hot加🔥)與⚪穩定區。格式:站名:台數 (較上次:變動)。100%繁體。時間:{current_time_tp}。數據：{changed}, {unchanged}"
         final_msg = call_gemini(prompt)
         
         if final_msg:
             send_line(f"[🧠 AI 深度情報]\n" + final_msg.strip(), sheet_url)
         else:
-            send_line(f"【📡 衛星備援報告】時間 {current_time_tp}", sheet_url)
+            # 🤖 AI 離線備援模板
+            report = f"【⚠️ AI 監控離線】時間 {current_time_tp}\n\n"
+            report += "⚡ 【數據變動場站】\n"
+            if not changed: report += " (暫無變動)\n"
+            for i in changed:
+                p = "🔥" if i.get('hot') else " "
+                report += f" {p}{i['name']}:{i['curr']} (較上次:{i['diff']})\n"
+            report += "\n⚪ 【無變動場站】\n"
+            for i in unchanged:
+                report += f"   {i['name']}:{i['curr']} (較上次:0)\n"
+            send_line(report, sheet_url)
     else: spy_log("[System] 偵察失敗")
 
 if __name__ == "__main__":
