@@ -178,7 +178,7 @@ async def main():
         file_url = upload_excel(excel_path)
         
         # --- AI 撰寫報告 ---
-        prompt = f"撰寫 Moovo 監測報告。指令：分⚡變動(hot加🔥)與⚪穩定區。格式:站名:台數 (較上次:變動)。100%繁體。時間:{current_time_tp}。數據：{changed}, {unchanged}"
+        prompt = f"撰寫 Moovo 監測報告。指令：分⚡變動(hot加🔥)與⚪穩定區。格式:站名:台數 (較上次:變動)。100%繁體。時間:{current_time_tp}。「💡 提示：若點開連結為亂碼，請先【下載檔案】再用 Excel 開啟。」數據：{changed}, {unchanged}"
         final_msg = call_gemini(prompt)
         
         # --- 傳送回報 ---
