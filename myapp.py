@@ -10,7 +10,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 # [System] 任務日誌
 def spy_log(msg): print(f"{msg}", flush=True)
 
-# 🎯 台北時間 (UTC+8) 校正
+# 🎯 台北時間 (UTC+8)
 now = datetime.utcnow() + timedelta(hours=8)
 current_time_tp = now.strftime("%Y-%m-%d %H:%M")
 file_date = now.strftime("%Y%m%d_%H%M")
@@ -25,89 +25,76 @@ EXCEL_FILE = f"Moovo_Report_{file_date}.xlsx"
 # ================= 2. 功能函數 =================
 
 def send_line(msg, file_url=None):
-    """特工防彈發送：嘗試發送檔案，失敗則自動降級為文字"""
+    """原子化發送協定：拆分文字與檔案，確保情報 100% 抵達"""
     url = "https://api.line.me/v2/bot/message/push"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"}
     
-    # 在文字末尾加入下載連結作為終極備援
+    # --- 步驟 1：發送核心文字情報 (含備援下載連結) ---
     full_text = msg
     if file_url:
-        full_text += f"\n\n📂 完整情報表下載：\n{file_url}"
+        full_text += f"\n\n📂 完整情報表下載連結：\n{file_url}"
     
-    # 策略 A：嘗試發送 [文字 + 檔案圖示]
-    payload_a = {
-        "to": LINE_TARGET,
-        "messages": [
-            {"type": "text", "text": full_text}
-        ]
-    }
+    payload_text = {"to": LINE_TARGET, "messages": [{"type": "text", "text": full_text}]}
     
-    if file_url:
-        payload_a["messages"].append({
-            "type": "file",
-            "fileName": EXCEL_FILE,
-            "originalContentUrl": file_url
-        })
-
     try:
-        spy_log(f"[Line] 嘗試發送完整情報 (文字+檔案)...")
-        res = requests.post(url, headers=headers, json=payload_a, timeout=20)
-        
-        if res.status_code == 200:
-            spy_log("[Line] ✅ 全通訊成功送達")
-        elif res.status_code == 400 and file_url:
-            spy_log(f"⚠️ [Line] 檔案掛載遭拒 (400)，錯誤內容: {res.text}")
-            spy_log("[Line] 執行降級方案：改發純文字情報...")
-            # 策略 B：降級為純文字
-            payload_b = {"to": LINE_TARGET, "messages": [{"type": "text", "text": full_text}]}
-            res_b = requests.post(url, headers=headers, json=payload_b, timeout=20)
-            spy_log(f"[Line] 降級發送狀態: {res_b.status_code}")
+        spy_log("[Line] 正在發送核心文字情報...")
+        res_text = requests.post(url, headers=headers, json=payload_text, timeout=20)
+        if res_text.status_code == 200:
+            spy_log("✅ 文字情報已送達")
         else:
-            spy_log(f"❌ [Line] 異常狀態碼: {res.status_code}, 內容: {res.text}")
+            spy_log(f"❌ 文字發送失敗 ({res_text.status_code}): {res_text.text}")
     except Exception as e:
-        spy_log(f"🚫 [Line] 通訊物理損壞: {e}")
+        spy_log(f"🚫 文字路徑物理損壞: {e}")
+
+    # --- 步驟 2：嘗試發送檔案掛載訊息 (獨立請求) ---
+    if file_url:
+        payload_file = {
+            "to": LINE_TARGET,
+            "messages": [{
+                "type": "file",
+                "fileName": EXCEL_FILE,
+                "originalContentUrl": file_url
+            }]
+        }
+        try:
+            spy_log("[Line] 正在嘗試掛載檔案圖示...")
+            res_file = requests.post(url, headers=headers, json=payload_file, timeout=20)
+            if res_file.status_code == 200:
+                spy_log("✅ 檔案圖示已掛載")
+            else:
+                spy_log(f"⚠️ 檔案掛載遭拒 ({res_file.status_code})，這不影響文字情報。")
+                spy_log(f"   原因: {res_file.text}")
+        except:
+            spy_log("⚠️ 檔案傳輸路徑異常")
 
 def upload_excel(file_path):
-    """三重上傳路徑：Catbox -> file.io -> transfer.sh"""
+    """三重備援上傳邏輯"""
     if not os.path.exists(file_path): return None
     spy_log(f"[System] 準備上傳情報檔 ({os.path.getsize(file_path)} bytes)...")
 
-    # 🚀 路徑 A: Catbox
+    # 路徑 A: Catbox
     try:
-        spy_log("[System] 嘗試路徑 A (Catbox)...")
+        spy_log("[System] 嘗試 Catbox...")
         with open(file_path, 'rb') as f:
             res = requests.post('https://catbox.moe/user/api.php', 
                                 data={'reqtype': 'fileupload'}, 
                                 files={'fileToUpload': f}, timeout=25)
-            if res.status_code == 200 and "https" in res.text:
-                return res.text.strip()
+            if res.status_code == 200 and "https" in res.text: return res.text.strip()
     except: pass
 
-    # 🚀 路徑 B: file.io
+    # 路徑 B: file.io
     try:
-        spy_log("[System] 嘗試路徑 B (file.io)...")
+        spy_log("[System] 嘗試 file.io...")
         with open(file_path, 'rb') as f:
             res = requests.post('https://file.io', files={'file': f}, timeout=20)
-            if res.status_code == 200:
-                data = res.json()
-                if data.get('success'): return data.get('link')
+            if res.status_code == 200 and res.json().get('success'): return res.json().get('link')
     except: pass
-
-    # 🚀 路徑 C: transfer.sh
-    try:
-        spy_log("[System] 嘗試路徑 C (transfer.sh)...")
-        with open(file_path, 'rb') as f:
-            res = requests.put(f'https://transfer.sh/{EXCEL_FILE}', data=f, timeout=20)
-            if res.status_code == 200:
-                url = res.text.strip()
-                return url if url.startswith("http") else f"https://{url}"
-    except: pass
-
+    
     return None
 
 def create_beautified_excel(changed, unchanged, filename):
-    """建立並美化 Excel 報表"""
-    spy_log("[System] 正在製作數位化美化情報表...")
+    """Excel 報表製作"""
+    spy_log("[System] 正在繪製情報表...")
     data = []
     for i in changed:
         data.append({"狀態": "⚡ 變動", "場站名稱": i['name'], "現有台數": i['curr'], "變動量": i['diff']})
@@ -129,8 +116,7 @@ def create_beautified_excel(changed, unchanged, filename):
             for cell in ws[row]:
                 if fill: cell.fill = fill
                 cell.alignment, cell.border = center, border
-        for col in ws.columns:
-            ws.column_dimensions[col[0].column_letter].width = 25
+        for col in ws.columns: ws.column_dimensions[col[0].column_letter].width = 25
     return filename
 
 def call_gemini(prompt):
