@@ -20,7 +20,7 @@ LINE_TARGET = os.getenv("LINE_USER_ID")
 AI_KEY = os.getenv("GEMINI_API_KEY")
 DATA_FILE = "last_data.json"
 SHEET_NAME = "Moovo調度監測表"
-DASHBOARD_URL = "https://你的帳號.github.io/moovo-tracker/"
+DASHBOARD_URL = "https://a13a5510-ctrl.github.io/moovo-tracker/"
 
 # ================= 2. 衛星同步功能 (雙軌存儲) =================
 
