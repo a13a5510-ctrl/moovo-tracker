@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moovo 戰情監測中心</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+        h1 { text-align: center; color: #2c3e50; font-size: 28px; margin-bottom: 20px; }
+        .controls { text-align: center; margin-bottom: 30px; }
+        button { background-color: #2980b9; color: white; border: none; padding: 10px 20px; margin: 0 8px; border-radius: 6px; cursor: pointer; font-size: 15px; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        button:hover { background-color: #1a5276; transform: translateY(-1px); }
+        .chart-container { position: relative; height: 50vh; width: 100%; }
+        .footer { text-align: center; margin-top: 30px; font-size: 14px; color: #7f8c8d; padding-top: 15px; border-top: 1px solid #eee; }
+        .highlight { color: #e74c3c; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Moovo 戰情監測中心 <span style="font-size: 16px; color: #7f8c8d;">(長官專用儀表板)</span></h1>
+        
+        <div class="controls">
+            <button onclick="updateChart('bar')">📊 長條圖對比</button>
+            <button onclick="updateChart('pie')">🥧 圓餅圖佔比</button>
+            <button onclick="updateChart('doughnut')">🍩 甜甜圈圖</button>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="moovoChart"></canvas>
+        </div>
+
+        <div class="footer" id="status-text">
+            📡 系統狀態: 正在與衛星同步數據中...
+        </div>
+    </div>
+
+    <script>
+        let myChart = null;
+        let chartData = { labels: [], values: [] };
+
+        // 核心邏輯：讀取同一目錄下的 last_data.json
+        async function fetchData() {
+            try {
+                // 為了避免瀏覽器快取舊資料，加上時間戳記強制抓取最新版
+                const response = await fetch('./last_data.json?t=' + new Date().getTime());
+                const data = await response.json();
+                
+                // 將 JSON 物件轉換為圖表需要的陣列格式
+                chartData.labels = Object.keys(data);
+                chartData.values = Object.values(data).map(item => item.bikes);
+                
+                document.getElementById('status-text').innerHTML = `✅ 系統狀態: 運作正常 | 目前監測 <span class="highlight">${chartData.labels.length}</span> 個戰略熱點`;
+                
+                // 預設載入長條圖
+                updateChart('bar');
+            } catch (error) {
+                console.error("情報讀取失敗:", error);
+                document.getElementById('status-text').innerHTML = "⚠️ 系統狀態: 無法讀取情報，請確認排程是否正常執行。";
+            }
+        }
+
+        // 繪圖邏輯
+        function updateChart(type) {
+            const ctx = document.getElementById('moovoChart').getContext('2d');
+            
+            // 如果畫布上已經有圖表，必須先銷毀才能畫新的，否則會重疊
+            if (myChart != null) {
+                myChart.destroy();
+            }
+
+            // 生成漸層或多樣式的顏色供圖表使用
+            const bgColors = chartData.labels.map((_, i) => `hsl(${(i * 360) / chartData.labels.length}, 70%, 60%)`);
+
+            myChart = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: '場站現有台數',
+                        data: chartData.values,
+                        backgroundColor: bgColors,
+                        borderWidth: 1,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: type !== 'bar', // 長條圖通常不顯示上方圖例
+                            position: 'right'
+                        }
+                    },
+                    scales: type === 'bar' ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } } : {}
+                }
+            });
+        }
+
+        // 網頁一打開就啟動抓取任務
+        fetchData();
+    </script>
+</body>
+</html>
