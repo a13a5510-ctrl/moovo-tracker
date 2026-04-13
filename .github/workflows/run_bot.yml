@@ -22,7 +22,7 @@ jobs:
       - name: 3. 安裝工具與瀏覽器
         run: |
           pip install -r requirements.txt
-          npx playwright install chromium --with-deps
+          python -m playwright install chromium
 
       - name: 3.5 還原衛星金鑰
         run: |
