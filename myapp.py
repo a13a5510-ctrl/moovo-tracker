@@ -20,6 +20,7 @@ LINE_TARGET = os.getenv("LINE_USER_ID")
 AI_KEY = os.getenv("GEMINI_API_KEY")
 DATA_FILE = "last_data.json"
 SHEET_NAME = "Moovo調度監測表"
+DASHBOARD_URL = "https://你的帳號.github.io/moovo-tracker/"
 
 # ================= 2. 衛星同步功能 (雙軌存儲) =================
 
@@ -95,9 +96,16 @@ def call_gemini(prompt):
 def send_line(msg, sheet_url=None):
     url = "https://api.line.me/v2/bot/message/push"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"}
+    
     full_text = msg
+    
+    # 👇 新增的排版邏輯：加入分隔線與兩種連結
+    full_text += "\n\n" + "═"*15
+    if DASHBOARD_URL:
+        full_text += f"\n📈 戰情儀表板 (視覺化)：\n{DASHBOARD_URL}"
     if sheet_url:
-        full_text += f"\n\n📊 雲端指揮中心 (即時表格)：\n{sheet_url}"
+        full_text += f"\n📊 原始數據表 (備查用)：\n{sheet_url}"
+        
     payload = {"to": LINE_TARGET, "messages": [{"type": "text", "text": full_text}]}
     try:
         requests.post(url, headers=headers, json=payload, timeout=20)
