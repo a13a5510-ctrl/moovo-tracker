@@ -6,29 +6,95 @@
     <title>Moovo 營運決策監測系統</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --primary-color: #2c3e50; --secondary-color: #34495e; --accent-color: #27ae60; --bg-color: #f4f7f6; }
-        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: var(--bg-color); color: var(--primary-color); margin: 0; padding: 20px; }
+        /* 定義淺色與深色主題的 CSS 變數 */
+        :root { 
+            --primary-color: #2c3e50; 
+            --secondary-color: #34495e; 
+            --accent-color: #27ae60; 
+            --bg-color: #f4f7f6; 
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+            --text-muted: #7f8c8d;
+            --border-color: #eeeeee;
+        }
+        
+        [data-theme="dark"] {
+            --primary-color: #ecf0f1; 
+            --secondary-color: #5c6b73; 
+            --accent-color: #2ecc71; 
+            --bg-color: #1a1a2e; 
+            --card-bg: #16213e;
+            --text-main: #ecf0f1;
+            --text-muted: #95a5a6;
+            --border-color: #2c3e50;
+        }
+
+        body { 
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 20px; 
+            transition: background-color 0.4s ease, color 0.4s ease; /* 平滑過渡動畫 */
+        }
         .container { max-width: 1100px; margin: 0 auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: white; padding: 20px 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .header h1 { margin: 0; font-size: 24px; color: var(--primary-color); }
+        
+        /* 標題列配置 */
+        .header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 30px; background: var(--card-bg); padding: 20px 30px; 
+            border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            transition: background-color 0.4s ease;
+        }
+        .header h1 { margin: 0; font-size: 24px; color: var(--text-main); }
+        .header-left { display: flex; flex-direction: column; gap: 5px; }
+        
+        /* 深淺色切換按鈕 */
+        .theme-toggle { 
+            background: transparent; color: var(--text-main); 
+            border: 1px solid var(--text-muted); padding: 8px 16px; 
+            border-radius: 20px; cursor: pointer; font-size: 14px; 
+            transition: 0.3s; 
+        }
+        .theme-toggle:hover { background: var(--text-main); color: var(--card-bg); }
+
+        /* 卡片配置 */
         .roi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
-        .card .label { font-size: 14px; color: #7f8c8d; margin-bottom: 10px; }
+        .card { 
+            background: var(--card-bg); padding: 20px; border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; 
+            transition: background-color 0.4s ease;
+        }
+        .card .label { font-size: 14px; color: var(--text-muted); margin-bottom: 10px; }
         .card .value { font-size: 28px; font-weight: bold; color: var(--accent-color); }
-        .main-content { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .comparison-tag { font-size: 12px; padding: 2px 8px; border-radius: 20px; background: rgba(39, 174, 96, 0.1); color: var(--accent-color); margin-left: 5px; }
+
+        /* 核心圖表區 */
+        .main-content { 
+            background: var(--card-bg); padding: 30px; border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; 
+            transition: background-color 0.4s ease;
+        }
         .controls { margin-bottom: 25px; text-align: center; }
-        button { background-color: var(--secondary-color); color: white; border: none; padding: 10px 25px; margin: 0 10px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
-        button:hover { background-color: var(--primary-color); opacity: 0.9; }
-        .chart-container { height: 450px; width: 100%; }
-        .footer { text-align: center; font-size: 13px; color: #95a5a6; }
-        .comparison-tag { font-size: 12px; padding: 2px 8px; border-radius: 20px; background: #e8f6ef; color: #27ae60; margin-left: 5px; }
+        .controls button { 
+            background-color: var(--secondary-color); color: white; 
+            border: none; padding: 10px 25px; margin: 0 10px; 
+            border-radius: 6px; cursor: pointer; transition: 0.3s; 
+        }
+        .controls button:hover { opacity: 0.8; transform: translateY(-1px); }
+        .chart-container { height: 500px; width: 100%; position: relative; }
+        
+        .footer { text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <h1>📡 Moovo 數位轉型：營運數據中心</h1>
-            <div id="last-update" style="color: #95a5a6; font-size: 14px;">數據即時同步中...</div>
+            <div class="header-left">
+                <h1>📡 Moovo 數位轉型：營運數據中心</h1>
+                <div id="last-update" style="color: var(--text-muted); font-size: 14px;">數據加載中...</div>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌓 切換深色模式</button>
         </header>
 
         <div class="roi-grid">
@@ -48,8 +114,8 @@
 
         <div class="main-content">
             <div class="controls">
-                <button onclick="updateChart('bar')">場站概覽 (長條圖)</button>
-                <button onclick="updateChart('pie')">佔比分析 (圓餅圖)</button>
+                <button onclick="updateChart('bar')">📊 場站概覽 (長條圖)</button>
+                <button onclick="updateChart('pie')">🥧 佔比分析 (圓餅圖)</button>
             </div>
             <div class="chart-container">
                 <canvas id="mainChart"></canvas>
@@ -64,9 +130,31 @@
     <script>
         let myChart = null;
         let chartData = { labels: [], values: [] };
+        let currentChartType = 'bar'; // 紀錄當前圖表類型
+
+        // 主題切換邏輯
+        function toggleTheme() {
+            const htmlTag = document.documentElement;
+            const btn = document.getElementById('themeBtn');
+            const isDark = htmlTag.getAttribute('data-theme') === 'dark';
+            
+            if (isDark) {
+                htmlTag.removeAttribute('data-theme');
+                btn.innerText = '🌓 切換深色模式';
+            } else {
+                htmlTag.setAttribute('data-theme', 'dark');
+                btn.innerText = '☀️ 切換淺色模式';
+            }
+            
+            // 主題切換時，重新繪製圖表以更新文字與格線顏色
+            if (chartData.labels.length > 0) {
+                updateChart(currentChartType);
+            }
+        }
 
         async function init() {
             try {
+                // 強制抓取最新數據，避免快取
                 const response = await fetch('./last_data.json?t=' + Date.now());
                 const data = await response.json();
                 
@@ -74,19 +162,32 @@
                 chartData.values = Object.values(data).map(item => item.bikes);
                 
                 document.getElementById('station-count').innerText = chartData.labels.length;
-                document.getElementById('last-update').innerText = `最後同步時間：${new Date().toLocaleString()}`;
+                document.getElementById('last-update').innerText = `最後同步時間：${new Date().toLocaleString('zh-TW', {hour12: false})}`;
                 
-                updateChart('bar');
+                updateChart('bar'); // 初始載入長條圖
             } catch (err) {
                 console.error("無法加載數據", err);
+                document.getElementById('last-update').innerText = "⚠️ 數據加載失敗，請確認資料來源";
             }
         }
 
         function updateChart(type) {
+            currentChartType = type; // 更新當前類型
             const ctx = document.getElementById('mainChart').getContext('2d');
+            
+            // 銷毀舊圖表
             if (myChart) myChart.destroy();
 
-            const colors = chartData.labels.map((_, i) => `hsl(${(i * 360) / chartData.labels.length}, 65%, 55%)`);
+            // 判斷當前是否為深色模式，以設定圖表的文字與格線顏色
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const chartTextColor = isDark ? '#ecf0f1' : '#7f8c8d';
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+            // 設定全局字體顏色
+            Chart.defaults.color = chartTextColor;
+
+            // 產生隨機漸層色系
+            const colors = chartData.labels.map((_, i) => `hsl(${(i * 360) / chartData.labels.length}, 70%, 55%)`);
 
             myChart = new Chart(ctx, {
                 type: type,
@@ -96,17 +197,41 @@
                         label: '當前可用車輛 (台數)',
                         data: chartData.values,
                         backgroundColor: colors,
-                        borderRadius: 5
+                        borderColor: isDark ? '#16213e' : '#ffffff',
+                        borderWidth: 2,
+                        borderRadius: type === 'bar' ? 5 : 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: type !== 'bar' } },
-                    scales: type === 'bar' ? { y: { beginAtZero: true, grid: { display: false } } } : {}
+                    plugins: { 
+                        legend: { 
+                            display: type !== 'bar', // 長條圖不顯示標籤
+                            position: 'right',       // ⭐️ 將標籤固定在右側
+                            align: 'center',
+                            labels: {
+                                boxWidth: 12,        // 縮小標籤色塊
+                                padding: 15,         // 增加標籤間距，讓排版不擁擠
+                                font: { size: 12 }
+                            }
+                        } 
+                    },
+                    scales: type === 'bar' ? { 
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: gridColor }, // 動態格線顏色
+                            ticks: { stepSize: 1 } 
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    } : {} // 圓餅圖不需要 xy 軸
                 }
             });
         }
+        
+        // 網頁啟動時載入
         init();
     </script>
 </body>
