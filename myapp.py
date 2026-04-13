@@ -66,7 +66,7 @@ def update_google_sheet(changed, unchanged):
 
         # 1. 更新即時情報 (覆蓋式)
         ws_now.clear()
-        ws_now.update('A1', now_rows)
+        ws_now.update(values=now_rows, range_name='A1')
         
         # 2. 追加至歷史紀錄 (追加式)
         if history_rows:
@@ -81,7 +81,6 @@ def update_google_sheet(changed, unchanged):
 
 def call_gemini(prompt):
     api_key = AI_KEY.strip()
-    # 鎖定您的 2.5/2.0 版本
     target_models = ["gemini-2.5-flash", "gemini-2.0-flash"]
     for m in target_models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
@@ -90,7 +89,11 @@ def call_gemini(prompt):
                                 json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=25)
             if res.status_code == 200:
                 return res.json()['candidates'][0]['content']['parts'][0]['text']
-        except: continue
+            else:
+                spy_log(f"⚠️ AI 呼叫失敗 ({m}): {res.status_code} - {res.text}") # 👈 抓出 API 拒絕的原因
+        except Exception as e:
+            spy_log(f"⚠️ AI 連線異常 ({m}): {e}") # 👈 抓出網路斷線的原因
+            continue
     return None
 
 def send_line(msg, sheet_url=None):
