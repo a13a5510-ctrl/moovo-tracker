@@ -20,7 +20,7 @@ DATA_FILE = "last_data.json"
 TREND_FILE = "history_trend.json" # 新增時序資料庫
 DASHBOARD_URL = "https://a13a5510-ctrl.github.io/moovo-tracker/"
 # 精準鎖定專屬表單
-SHEET_ID = "12pjqrw_75dylcTL9siyvkNeeeyeIslCEaKJQW-PyFjA" 
+SHEET_ID = "1YpOgGufLdsZGGbdL30OoroeEMquC_T2npi37AXSpkfQ" 
 
 # ================= 2. 衛星同步功能 (雙軌存儲) =================
 def update_google_sheet(changed, unchanged):
