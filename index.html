@@ -43,7 +43,9 @@
         .chart-controls button:hover { opacity: 0.8; }
         .chart-container { height: 500px; width: 100%; }
         .trend-container { height: 400px; width: 100%; margin-bottom: 20px; }
-        .section-title { font-size: 18px; font-weight: bold; border-left: 4px solid var(--accent-color); padding-left: 10px; margin-bottom: 15px; }
+        /* 時光機圖表專屬高度 */
+        .timeline-container { height: 550px; width: 100%; } 
+        .section-title { font-size: 18px; font-weight: bold; border-left: 4px solid var(--accent-color); padding-left: 10px; margin-bottom: 15px; display: flex; justify-content: space-between;}
         .footer { text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 20px; padding-bottom: 20px;}
     </style>
 </head>
@@ -93,7 +95,15 @@
         </div>
 
         <div class="chart-section">
-            <div class="section-title">⏱️ 全站點動態時序追蹤 (15分鐘間隔)</div>
+            <div class="section-title">
+                <span>⏳ 數據時光機：15分鐘調度微觀回放</span>
+                <span style="font-size: 14px; font-weight: normal; color: var(--text-muted);">支援自動播放與手動拖拉時間軸</span>
+            </div>
+            <div id="timeMachineChart" class="timeline-container"></div>
+        </div>
+
+        <div class="chart-section">
+            <div class="section-title">宏觀：全站點動態時序追蹤 (24小時總覽)</div>
             <div id="trendChart" class="trend-container"></div>
         </div>
 
@@ -114,6 +124,7 @@
     <script>
         let snapshotChartInst = null;
         let trendChartInst = null;
+        let timeMachineInst = null; // 新增時光機實例
         let latestData = [];
         let trendHistory = [];
         let currentSnapshotType = 'bar';
@@ -141,7 +152,13 @@
             const isDark = htmlTag.getAttribute('data-theme') === 'dark';
             if (isDark) { htmlTag.removeAttribute('data-theme'); btn.innerText = '🌓 切換深色模式'; } 
             else { htmlTag.setAttribute('data-theme', 'dark'); btn.innerText = '☀️ 切換淺色模式'; }
-            if (latestData.length > 0) { renderSnapshotChart(currentSnapshotType); renderTrendChart(); }
+            
+            // 重繪所有圖表以適應深淺色
+            if (latestData.length > 0) renderSnapshotChart(currentSnapshotType); 
+            if (trendHistory.length > 0) {
+                renderTrendChart();
+                renderTimeMachineChart();
+            }
         }
 
         async function init() {
@@ -159,32 +176,89 @@
                 try {
                     const resTrend = await fetch('./history_trend.json?t=' + ts);
                     trendHistory = await resTrend.json();
-                } catch(e) { console.warn("尚未建立歷史趨勢檔案，將於下次 15 分鐘排程後自動生成。"); }
+                } catch(e) { console.warn("尚未建立歷史趨勢檔案"); }
 
                 renderSnapshotChart('bar');
-                if(trendHistory.length > 0) renderTrendChart();
+                if(trendHistory.length > 0) {
+                    renderTrendChart();
+                    renderTimeMachineChart(); // 啟動時光機
+                }
 
             } catch (err) { console.error("加載失敗", err); }
         }
 
+        // 🌟 核心魔法：數據時光機 (動態時間軸圖表)
+        function renderTimeMachineChart() {
+            const chartDom = document.getElementById('timeMachineChart');
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            if (timeMachineInst) timeMachineInst.dispose();
+            timeMachineInst = echarts.init(chartDom, isDark ? 'dark' : null);
+
+            // 提取時間節點 (HH:MM) 作為播放器的刻度
+            const timeLabels = trendHistory.map(item => item.time.split(' ')[1]);
+            const stations = Object.keys(trendHistory[0].data);
+            const textColor = isDark ? '#ecf0f1' : '#2c3e50';
+
+            // 建立每個時間點的「影格」數據
+            const optionsArray = trendHistory.map(historyPoint => {
+                return {
+                    title: { text: `時間切片：${historyPoint.time}` },
+                    series: [{
+                        data: stations.map(station => historyPoint.data[station] ? historyPoint.data[station].bikes : 0)
+                    }]
+                };
+            });
+
+            // 播放器基礎設定
+            const baseOption = {
+                backgroundColor: 'transparent',
+                timeline: {
+                    axisType: 'category',
+                    autoPlay: true,           // 預設自動播放
+                    playInterval: 1500,       // 每個影格停留 1.5 秒
+                    data: timeLabels,
+                    label: { color: textColor },
+                    controlStyle: { color: textColor, borderColor: textColor },
+                    lineStyle: { color: '#7f8c8d' },
+                    checkpointStyle: { color: '#27ae60', borderColor: 'rgba(39, 174, 96, 0.5)' },
+                    bottom: 10
+                },
+                title: { textStyle: { color: textColor, fontSize: 16 }, top: 0, right: 10 },
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                grid: { left: '3%', right: '4%', bottom: '20%', top: '15%', containLabel: true },
+                xAxis: { 
+                    type: 'category', 
+                    data: stations, 
+                    axisLabel: { interval: 0, rotate: 45, color: textColor } 
+                },
+                yAxis: { type: 'value', name: '可用車輛(台)' },
+                series: [{
+                    type: 'bar',
+                    itemStyle: { color: '#3498db', borderRadius: [4, 4, 0, 0] },
+                    // 加上動畫效果
+                    animationDurationUpdate: 800, 
+                    animationEasingUpdate: 'quinticInOut'
+                }]
+            };
+
+            timeMachineInst.setOption({
+                baseOption: baseOption,
+                options: optionsArray
+            });
+        }
+
+        // 宏觀折線圖
         function renderTrendChart() {
             const chartDom = document.getElementById('trendChart');
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             if (trendChartInst) trendChartInst.dispose();
             trendChartInst = echarts.init(chartDom, isDark ? 'dark' : null);
 
-            // 提取時間軸
             const times = trendHistory.map(item => item.time.split(' ')[1]); 
-            
-            // 提取所有站點名稱
             const stations = Object.keys(trendHistory[0].data);
             
-            // 建立折線圖 series
             const seriesData = stations.map(station => ({
-                name: station,
-                type: 'line',
-                smooth: true,
-                symbol: 'none',
+                name: station, type: 'line', smooth: true, symbol: 'none',
                 data: trendHistory.map(item => item.data[station] ? item.data[station].bikes : 0)
             }));
 
@@ -192,15 +266,16 @@
                 backgroundColor: 'transparent',
                 tooltip: { trigger: 'axis' },
                 legend: { type: 'scroll', top: 0, textStyle: { color: isDark ? '#ecf0f1' : '#2c3e50' } },
-                grid: { left: '3%', right: '4%', bottom: '10%', containLabel: true },
+                grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
                 xAxis: { type: 'category', boundaryGap: false, data: times },
                 yAxis: { type: 'value', name: '台數' },
-                dataZoom: [{ type: 'inside', start: 0, end: 100 }, { start: 0, end: 100 }], // 支援縮放
+                dataZoom: [{ type: 'inside', start: 0, end: 100 }, { start: 0, end: 100 }], 
                 series: seriesData
             };
             trendChartInst.setOption(option);
         }
 
+        // 當前快照圖
         function renderSnapshotChart(type) {
             currentSnapshotType = type;
             const chartDom = document.getElementById('snapshotChart');
@@ -237,6 +312,7 @@
         window.addEventListener('resize', function() {
             if (snapshotChartInst) snapshotChartInst.resize();
             if (trendChartInst) trendChartInst.resize();
+            if (timeMachineInst) timeMachineInst.resize();
         });
         init();
     </script>
