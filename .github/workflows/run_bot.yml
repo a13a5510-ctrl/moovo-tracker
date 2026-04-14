@@ -2,7 +2,8 @@ name: Moovo Auto Tracker
 
 on:
   schedule:
-    - cron: '0 1,5,9,13,17,21 * * *'
+    # 每 15 分鐘執行一次 (0, 15, 30, 45)
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:
