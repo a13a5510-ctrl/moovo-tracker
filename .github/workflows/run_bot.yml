@@ -42,9 +42,10 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add last_data.json history_trend.json # 👈 記得加這行
-          git commit -m "Update logs [skip ci]" || echo "No changes"
-          git push
+          if [ -n "$(git status --porcelain)" ]; then
+            git add last_data.json history_trend.json
+            git commit -m "Update tracker data [skip ci]"
+            git push
           else
             echo "數據無變動，無需更新記憶。"
-          fi
+          fi8
