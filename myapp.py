@@ -131,10 +131,12 @@ async def scrape_moovo():
             await browser.close(); return data
         except: await browser.close(); return None
 
+TREND_FILE = "history_trend.json" # 👈 新增趨勢數據檔名
+
 async def main():
     raw_data = await scrape_moovo()
     if raw_data:
-        # --- 數據分析 ---
+        # 1. 讀取與比對數據 (與原本相同)
         history = {}
         if os.path.exists(DATA_FILE):
             try:
@@ -142,34 +144,45 @@ async def main():
             except: history = {}
         
         changed, unchanged, new_history = [], [], {}
-        max_abs_diff = 0
         for item in raw_data:
             name, curr = item['name'], int(item['bikes'])
-            prev_data = history.get(name, {})
-            prev = prev_data.get("bikes", curr) if isinstance(prev_data, dict) else int(prev_data)
+            prev = history.get(name, {}).get("bikes", curr)
             diff = curr - prev
-            abs_diff = abs(diff); max_abs_diff = max(max_abs_diff, abs_diff)
-            info = {"name": name, "curr": curr, "diff": f"{'+' if diff > 0 else ''}{diff}", "abs_diff": abs_diff}
+            info = {"name": name, "curr": curr, "diff": f"{'+' if diff > 0 else ''}{diff}"}
             if diff != 0: changed.append(info)
             else: unchanged.append(info)
             new_history[name] = {"bikes": curr}
         
-        for i in changed:
-            if i['abs_diff'] == max_abs_diff and max_abs_diff > 0: i['hot'] = True
-        with open(DATA_FILE, "w", encoding="utf-8") as f: json.dump(new_history, f, ensure_ascii=False)
+        # 2. 更新時序趨勢數據 (供網頁使用，保留最近 48 筆 = 12 小時)
+        trend_log = []
+        if os.path.exists(TREND_FILE):
+            try:
+                with open(TREND_FILE, "r", encoding="utf-8") as f: trend_log = json.load(f)
+            except: trend_log = []
+        
+        trend_log.append({"time": current_time_tp, "data": new_history})
+        trend_log = trend_log[-48:] # 只保留最近 48 次紀錄，避免檔案過大
+        with open(TREND_FILE, "w", encoding="utf-8") as f:
+            json.dump(trend_log, f, ensure_ascii=False)
 
-        # --- 衛星同步 (雙軌) ---
+        # 3. 儲存目前的快照
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(new_history, f, ensure_ascii=False)
+
+        # 4. 同步至 Google Sheets (每次 15 分鐘都會同步)
         sheet_url = update_google_sheet(changed, unchanged)
         
-        # --- AI 報告 ---
-        prompt = f"撰寫 Moovo 監測報告。指令：分⚡變動(hot加🔥)與⚪穩定區。格式:站名:台數 (較上次:變動)。100%繁體。時間:{current_time_tp}。數據：{changed}, {unchanged}"
-        final_msg = call_gemini(prompt)
-        
-        if final_msg:
-            send_line(f"[🧠 AI 深度情報]\n" + final_msg.strip(), sheet_url)
+        # 5. 🎯 重點：判斷是否為 4 小時回報時間
+        # 假設在 01:00, 05:00, 09:00, 13:00, 17:00, 21:00 回報 (與原本 cron 相同)
+        report_hours = [1, 5, 9, 13, 17, 21]
+        if now.hour in report_hours and now.minute < 15:
+            spy_log("[System] 到達 4 小時週期，啟動 AI 總結回報...")
+            prompt = f"撰寫 Moovo 4小時數據總結。時間:{current_time_tp}。請分析這段時間的變動趨勢：{changed}"
+            final_msg = call_gemini(prompt)
+            send_line(f"[🧠 營運週期報告]\n" + (final_msg or "數據穩定"), sheet_url)
         else:
-            send_line(f"【📡 衛星備援報告】時間 {current_time_tp}", sheet_url)
-    else: spy_log("[System] 偵察失敗")
+            spy_log(f"[System] 非回報時段 ({now.hour}:{now.minute})，僅更新數據。")
 
+    else: spy_log("[System] 偵察失敗")
 if __name__ == "__main__":
     asyncio.run(main())
