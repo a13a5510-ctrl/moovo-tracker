@@ -190,26 +190,35 @@
 
         // 3. 讀取數據
         async function init() {
-            calculateROI(); // 初始化計算機
-            try {
-                const response = await fetch('./last_data.json?t=' + Date.now());
-                const rawData = await response.json();
-                
-                // 轉換為 ECharts 需要的格式 [{name: '站點A', value: 5}, ...]
-                chartData = Object.keys(rawData).map(key => ({
-                    name: key,
-                    value: rawData[key].bikes
-                }));
-                
-                document.getElementById('station-count').innerText = chartData.length;
-                document.getElementById('last-update').innerText = `最後同步時間：${new Date().toLocaleString('zh-TW', {hour12: false})}`;
-                
-                renderChart('bar');
-            } catch (err) {
-                console.error("無法加載數據", err);
-                document.getElementById('last-update').innerText = "⚠️ 數據加載失敗，請確認資料來源";
-            }
+            calculateROI();
+    try {
+        // 1. 讀取最新快照 (原本的功能)
+        const resSnapshot = await fetch('./last_data.json?t=' + Date.now());
+        const rawSnapshot = await resSnapshot.json();
+        
+        // 2. 讀取時序趨勢 (新功能)
+        const resTrend = await fetch('./history_trend.json?t=' + Date.now());
+        const trendData = await resTrend.json();
+        
+        chartData = Object.keys(rawSnapshot).map(key => ({
+            name: key,
+            value: rawSnapshot[key].bikes
+        }));
+
+        // 3. 準備趨勢圖需要的數據 (例如取第一個站點作為示範，或顯示總數)
+        // 這裡大師建議新增一個折線圖區域來顯示趨勢
+        renderTrendChart(trendData); 
+
+        renderChart('bar');
+    } catch (err) { console.error(err); }
         }
+
+        function renderTrendChart(trendData) {
+    // 你可以在 HTML 裡多加一個 <div id="trendChart">
+    // 用折線圖顯示特定站點在過去幾小時的 15 分鐘變化
+    // X 軸為 trendData.map(i => i.time)
+    // Y 軸為 trendData.map(i => i.data['某站點'].bikes)
+}
 
         // 4. ECharts 圖表渲染
         function renderChart(type) {
