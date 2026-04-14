@@ -38,16 +38,13 @@ jobs:
         run: python myapp.py
 
       - name: 5. 提交記憶數據
-        # 🎯 指定使用 bash 執行，這樣原本的語法就能通了
         shell: bash
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # 檢查是否有檔案變動
-          if [ -n "$(git status --porcelain)" ]; then
-            git add last_data.json
-            git commit -m "Update last_data.json [skip ci]"
-            git push
+          git add last_data.json history_trend.json # 👈 記得加這行
+          git commit -m "Update logs [skip ci]" || echo "No changes"
+          git push
           else
             echo "數據無變動，無需更新記憶。"
           fi
