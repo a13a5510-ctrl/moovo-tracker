@@ -2,9 +2,10 @@ name: Moovo Auto Tracker
 
 on:
   schedule:
-    # 每 15 分鐘執行一次 (0, 15, 30, 45)
-    - cron: '*/15 * * * *'
+    - cron: '*/15 * * * *' # 保留原本的當作備用
   workflow_dispatch:
+  repository_dispatch:      # 👈 新增這行：允許接收外部 Webhook 訊號
+    types: [moovo-cron-trigger] # 👈 設定一個專屬的通關密語
 
 jobs:
   run-bot:
