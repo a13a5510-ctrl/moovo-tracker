@@ -175,9 +175,18 @@
                 // 讀取時序歷史
                 try {
                     const resTrend = await fetch('./history_trend.json?t=' + ts);
-                    trendHistory = await resTrend.json();
+                    const allHistory = await resTrend.json();
+                    
+                    if (allHistory.length > 0) {
+                        // 🌟 大師的時間過濾魔法：
+                        // 1. 取得陣列中「最新一筆資料」的日期部分 (例如 "2026-04-15")
+                        const latestDate = allHistory[allHistory.length - 1].time.split(' ')[0];
+                        
+                        // 2. 嚴格過濾：只保留時間字串中包含「最新日期」的紀錄
+                        // 這樣就能完美切斷昨天的尾巴，保證時間軸永遠從今天的 00:00 或 00:01 開始！
+                        trendHistory = allHistory.filter(item => item.time.includes(latestDate));
+                    }
                 } catch(e) { console.warn("尚未建立歷史趨勢檔案"); }
-
                 renderSnapshotChart('bar');
                 if(trendHistory.length > 0) {
                     renderTrendChart();
