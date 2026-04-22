@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Moovo 營運決策監測系統</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <style>
@@ -20,40 +20,77 @@
         }
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 20px; transition: 0.3s; }
         .container { max-width: 1200px; margin: 0 auto; }
+        
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: var(--card-bg); padding: 20px 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.3s; }
         .header h1 { margin: 0; font-size: 24px; }
-        .theme-toggle { background: transparent; color: var(--text-main); border: 1px solid var(--text-muted); padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: 0.3s; }
+        .theme-toggle { background: transparent; color: var(--text-main); border: 1px solid var(--text-muted); padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: 0.3s; white-space: nowrap; }
         .theme-toggle:hover { background: var(--text-main); color: var(--card-bg); }
+        
         .roi-section, .chart-section { background: var(--card-bg); padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; transition: 0.3s; }
         .roi-section { border-top: 4px solid var(--accent-color); }
         .roi-header h2 { margin: 0 0 10px 0; text-align: center; }
         .roi-header p { margin: 0; color: var(--text-muted); font-size: 15px; text-align: center; margin-bottom: 20px; }
+        
         .roi-kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
         .roi-card { text-align: center; padding: 15px; background: rgba(39, 174, 96, 0.05); border-radius: 8px; border: 1px solid rgba(39, 174, 96, 0.2); }
         .roi-card.danger { background: rgba(231, 76, 60, 0.05); border: 1px solid rgba(231, 76, 60, 0.2); }
         .roi-card .label { font-size: 14px; color: var(--text-muted); margin-bottom: 5px; }
         .roi-card .value { font-size: 26px; font-weight: bold; color: var(--accent-color); }
         .roi-card.danger .value { color: var(--danger-color); }
+        
         .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: center; }
         .slider-group { display: flex; flex-direction: column; gap: 10px; }
+        .span-2 { grid-column: span 2; }
         .slider-header { display: flex; justify-content: space-between; font-size: 15px; font-weight: bold; }
         input[type=range] { width: 100%; cursor: pointer; accent-color: var(--accent-color); }
-        .chart-controls { text-align: center; margin-bottom: 20px; }
-        .chart-controls button { background-color: var(--secondary-color); color: white; border: none; padding: 10px 25px; margin: 0 5px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+        
+        .chart-controls { text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 10px; }
+        .chart-controls button { background-color: var(--secondary-color); color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; transition: 0.3s; font-size: 15px;}
         .chart-controls button:hover { opacity: 0.8; }
+        
         .chart-container { height: 500px; width: 100%; }
         .trend-container { height: 400px; width: 100%; margin-bottom: 20px; }
-        /* 時光機圖表專屬高度 */
         .timeline-container { height: 550px; width: 100%; } 
-        .section-title { font-size: 18px; font-weight: bold; border-left: 4px solid var(--accent-color); padding-left: 10px; margin-bottom: 15px; display: flex; justify-content: space-between;}
+        
+        .section-title { font-size: 18px; font-weight: bold; border-left: 4px solid var(--accent-color); padding-left: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;}
+        .subtitle-text { font-size: 14px; font-weight: normal; color: var(--text-muted); }
         .footer { text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 20px; padding-bottom: 20px;}
+
+        /* ==================================================== */
+        /* 📱 RWD 響應式魔法 - 手機版適配 (寬度小於 768px 時觸發) */
+        /* ==================================================== */
+        @media (max-width: 768px) {
+            body { padding: 10px; } /* 縮小外圍留白 */
+            
+            /* 標題區改為垂直排列 */
+            .header { flex-direction: column; align-items: flex-start; gap: 15px; padding: 15px; }
+            .theme-toggle { width: 100%; text-align: center; padding: 12px; }
+            
+            /* ROI 數據卡片與拉桿全數改為單行排列 */
+            .roi-section, .chart-section { padding: 15px; }
+            .roi-kpi-grid { grid-template-columns: 1fr; gap: 10px; }
+            .controls-grid { grid-template-columns: 1fr; gap: 20px; }
+            .span-2 { grid-column: span 1; } /* 取消跨列 */
+            
+            /* 圖表按鈕改為滿版且上下排列 (符合人體工學) */
+            .chart-controls { flex-direction: column; }
+            .chart-controls button { width: 100%; padding: 15px; font-size: 16px; }
+            
+            /* 縮小圖表高度，讓手機一屏能看懂 */
+            .chart-container { height: 350px; }
+            .trend-container { height: 300px; }
+            .timeline-container { height: 450px; }
+            
+            /* 區塊標題文字在手機上換行 */
+            .section-title { flex-direction: column; align-items: flex-start; gap: 5px; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header class="header">
             <div>
-                <h1>📡 Moovo 數位轉型：營運數據中心</h1>
+                <h1>📡 Moovo 營運數據中心</h1>
                 <div id="last-update" style="color: var(--text-muted); font-size: 14px; margin-top: 5px;">數據加載中...</div>
             </div>
             <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌓 切換深色模式</button>
@@ -61,8 +98,8 @@
 
         <div class="roi-section">
             <div class="roi-header">
-                <h2>📊 核心營運效益分析 (高頻自動化 vs 人工)</h2>
-                <p>將巡檢頻率從每週數次提升至<b>每 15 分鐘一次 (全天候 96 次)</b>，徹底消除管理盲區，並省下鉅額人力浪費。</p>
+                <h2>📊 核心營運效益分析 (高頻 vs 人工)</h2>
+                <p>將巡檢頻率從每週數次提升至<b>每 15 分鐘一次 (全天候 96 次)</b>，徹底消除管理盲區。</p>
             </div>
             <div class="roi-kpi-grid">
                 <div class="roi-card danger">
@@ -87,7 +124,7 @@
                     <div class="slider-header"><span>每週人工頻次</span><span style="color:var(--accent-color)"><span id="val-freq">3</span> 次</span></div>
                     <input type="range" id="input-freq" min="1" max="14" step="1" value="3" oninput="calculateROI()">
                 </div>
-                <div class="slider-group" style="grid-column: span 2;">
+                <div class="slider-group span-2">
                     <div class="slider-header"><span>人員平均時薪 (NTD)</span><span style="color:var(--accent-color)">NT$ <span id="val-wage">250</span></span></div>
                     <input type="range" id="input-wage" min="180" max="800" step="10" value="250" oninput="calculateROI()">
                 </div>
@@ -97,21 +134,21 @@
         <div class="chart-section">
             <div class="section-title">
                 <span>⏳ 數據時光機：15分鐘調度微觀回放</span>
-                <span style="font-size: 14px; font-weight: normal; color: var(--text-muted);">支援自動播放與手動拖拉時間軸</span>
+                <span class="subtitle-text">支援自動播放與手動拖拉時間軸</span>
             </div>
             <div id="timeMachineChart" class="timeline-container"></div>
         </div>
 
         <div class="chart-section">
-            <div class="section-title">宏觀：全站點動態時序追蹤 (24小時總覽)</div>
+            <div class="section-title">宏觀：全站點動態時序追蹤 (當日總覽)</div>
             <div id="trendChart" class="trend-container"></div>
         </div>
 
         <div class="chart-section">
             <div class="section-title">📸 當前站點戰力快照</div>
             <div class="chart-controls">
-                <button onclick="renderSnapshotChart('bar')">📊 場站台數分佈 (長條圖)</button>
-                <button onclick="renderSnapshotChart('pie')">🥧 場站資源佔比 (圓餅圖)</button>
+                <button onclick="renderSnapshotChart('bar')">📊 場站台數分佈</button>
+                <button onclick="renderSnapshotChart('pie')">🥧 場站資源佔比</button>
             </div>
             <div id="snapshotChart" class="chart-container"></div>
         </div>
@@ -124,7 +161,7 @@
     <script>
         let snapshotChartInst = null;
         let trendChartInst = null;
-        let timeMachineInst = null; // 新增時光機實例
+        let timeMachineInst = null;
         let latestData = [];
         let trendHistory = [];
         let currentSnapshotType = 'bar';
@@ -139,7 +176,7 @@
             const annualHours = h * f * 52;
             const annualCost = annualHours * w;
             const manualPoints = f * 52;
-            const autoPoints = 96 * 365; // 每天96次(15分/次)
+            const autoPoints = 96 * 365;
             const growth = ((autoPoints - manualPoints) / manualPoints) * 100;
             document.getElementById('kpi-cost').innerText = `NT$ ${annualCost.toLocaleString()}`;
             document.getElementById('kpi-hours').innerText = `${annualHours.toLocaleString()} 小時`;
@@ -153,7 +190,6 @@
             if (isDark) { htmlTag.removeAttribute('data-theme'); btn.innerText = '🌓 切換深色模式'; } 
             else { htmlTag.setAttribute('data-theme', 'dark'); btn.innerText = '☀️ 切換淺色模式'; }
             
-            // 重繪所有圖表以適應深淺色
             if (latestData.length > 0) renderSnapshotChart(currentSnapshotType); 
             if (trendHistory.length > 0) {
                 renderTrendChart();
@@ -165,98 +201,75 @@
             calculateROI();
             try {
                 const ts = Date.now();
-                // 讀取最新快照
                 const resData = await fetch('./last_data.json?t=' + ts);
                 const rawData = await resData.json();
                 latestData = Object.keys(rawData).map(key => ({ name: key, value: rawData[key].bikes }));
                 document.getElementById('station-count').innerText = latestData.length;
                 document.getElementById('last-update').innerText = `最後同步：${new Date().toLocaleString('zh-TW', {hour12: false})}`;
 
-                // 讀取時序歷史
                 try {
                     const resTrend = await fetch('./history_trend.json?t=' + ts);
                     const allHistory = await resTrend.json();
-                    
                     if (allHistory.length > 0) {
-                        // 🌟 大師的時間過濾魔法：
-                        // 1. 取得陣列中「最新一筆資料」的日期部分 (例如 "2026-04-15")
+                        // 時間過濾魔法：只保留今天 (最新一天) 的資料，不會跨日混淆
                         const latestDate = allHistory[allHistory.length - 1].time.split(' ')[0];
-                        
-                        // 2. 嚴格過濾：只保留時間字串中包含「最新日期」的紀錄
-                        // 這樣就能完美切斷昨天的尾巴，保證時間軸永遠從今天的 00:00 或 00:01 開始！
                         trendHistory = allHistory.filter(item => item.time.includes(latestDate));
                     }
                 } catch(e) { console.warn("尚未建立歷史趨勢檔案"); }
+
                 renderSnapshotChart('bar');
                 if(trendHistory.length > 0) {
                     renderTrendChart();
-                    renderTimeMachineChart(); // 啟動時光機
+                    renderTimeMachineChart();
                 }
 
             } catch (err) { console.error("加載失敗", err); }
         }
 
-        // 🌟 核心魔法：數據時光機 (動態時間軸圖表)
         function renderTimeMachineChart() {
             const chartDom = document.getElementById('timeMachineChart');
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             if (timeMachineInst) timeMachineInst.dispose();
             timeMachineInst = echarts.init(chartDom, isDark ? 'dark' : null);
 
-            // 提取時間節點 (HH:MM) 作為播放器的刻度
             const timeLabels = trendHistory.map(item => item.time.split(' ')[1]);
             const stations = Object.keys(trendHistory[0].data);
             const textColor = isDark ? '#ecf0f1' : '#2c3e50';
 
-            // 建立每個時間點的「影格」數據
             const optionsArray = trendHistory.map(historyPoint => {
                 return {
                     title: { text: `時間切片：${historyPoint.time}` },
-                    series: [{
-                        data: stations.map(station => historyPoint.data[station] ? historyPoint.data[station].bikes : 0)
-                    }]
+                    series: [{ data: stations.map(station => historyPoint.data[station] ? historyPoint.data[station].bikes : 0) }]
                 };
             });
 
-            // 播放器基礎設定
+            // 手機版優化：如果是小螢幕，縮小標籤以避免擠成一團
+            const isMobile = window.innerWidth <= 768;
+
             const baseOption = {
                 backgroundColor: 'transparent',
                 timeline: {
                     axisType: 'category',
-                    autoPlay: true,           // 預設自動播放
-                    playInterval: 1500,       // 每個影格停留 1.5 秒
+                    autoPlay: true,
+                    playInterval: 1500,
                     data: timeLabels,
-                    label: { color: textColor },
+                    label: { color: textColor, fontSize: isMobile ? 10 : 12 },
                     controlStyle: { color: textColor, borderColor: textColor },
                     lineStyle: { color: '#7f8c8d' },
                     checkpointStyle: { color: '#27ae60', borderColor: 'rgba(39, 174, 96, 0.5)' },
-                    bottom: 10
+                    bottom: 0
                 },
-                title: { textStyle: { color: textColor, fontSize: 16 }, top: 0, right: 10 },
+                title: { textStyle: { color: textColor, fontSize: isMobile ? 14 : 16 }, top: 0, right: isMobile ? 'auto' : 10, left: isMobile ? 0 : 'auto' },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                grid: { left: '3%', right: '4%', bottom: '20%', top: '15%', containLabel: true },
-                xAxis: { 
-                    type: 'category', 
-                    data: stations, 
-                    axisLabel: { interval: 0, rotate: 45, color: textColor } 
-                },
-                yAxis: { type: 'value', name: '可用車輛(台)' },
-                series: [{
-                    type: 'bar',
-                    itemStyle: { color: '#3498db', borderRadius: [4, 4, 0, 0] },
-                    // 加上動畫效果
-                    animationDurationUpdate: 800, 
-                    animationEasingUpdate: 'quinticInOut'
-                }]
+                grid: { left: '3%', right: '4%', bottom: '25%', top: isMobile ? '15%' : '10%', containLabel: true },
+                xAxis: { type: 'category', data: stations, axisLabel: { interval: 0, rotate: isMobile ? 90 : 45, color: textColor, fontSize: isMobile ? 10 : 12 } },
+                yAxis: { type: 'value', name: '可用車輛' },
+                series: [{ type: 'bar', itemStyle: { color: '#3498db', borderRadius: [4, 4, 0, 0] }, animationDurationUpdate: 800, animationEasingUpdate: 'quinticInOut' }]
             };
 
-            timeMachineInst.setOption({
-                baseOption: baseOption,
-                options: optionsArray
-            });
+            timeMachineInst.setOption({ baseOption: baseOption, options: optionsArray });
         }
 
-        // 宏觀折線圖
         function renderTrendChart() {
             const chartDom = document.getElementById('trendChart');
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -265,6 +278,7 @@
 
             const times = trendHistory.map(item => item.time.split(' ')[1]); 
             const stations = Object.keys(trendHistory[0].data);
+            const isMobile = window.innerWidth <= 768;
             
             const seriesData = stations.map(station => ({
                 name: station, type: 'line', smooth: true, symbol: 'none',
@@ -276,21 +290,21 @@
                 tooltip: { trigger: 'axis' },
                 legend: { type: 'scroll', top: 0, textStyle: { color: isDark ? '#ecf0f1' : '#2c3e50' } },
                 grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
-                xAxis: { type: 'category', boundaryGap: false, data: times },
-                yAxis: { type: 'value', name: '台數' },
+                xAxis: { type: 'category', boundaryGap: false, data: times, axisLabel: { fontSize: isMobile ? 10 : 12 } },
+                yAxis: { type: 'value' },
                 dataZoom: [{ type: 'inside', start: 0, end: 100 }, { start: 0, end: 100 }], 
                 series: seriesData
             };
             trendChartInst.setOption(option);
         }
 
-        // 當前快照圖
         function renderSnapshotChart(type) {
             currentSnapshotType = type;
             const chartDom = document.getElementById('snapshotChart');
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             if (snapshotChartInst) snapshotChartInst.dispose();
             snapshotChartInst = echarts.init(chartDom, isDark ? 'dark' : null);
+            const isMobile = window.innerWidth <= 768;
 
             let option;
             if (type === 'bar') {
@@ -298,7 +312,7 @@
                     backgroundColor: 'transparent',
                     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
                     grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
-                    xAxis: { type: 'category', data: latestData.map(i => i.name), axisLabel: { interval: 0, rotate: 45 } },
+                    xAxis: { type: 'category', data: latestData.map(i => i.name), axisLabel: { interval: 0, rotate: isMobile ? 90 : 45, fontSize: isMobile ? 10 : 12 } },
                     yAxis: { type: 'value' },
                     series: [{ data: latestData.map(i => i.value), type: 'bar', itemStyle: { color: '#27ae60', borderRadius: [4, 4, 0, 0] } }]
                 };
@@ -307,10 +321,10 @@
                     backgroundColor: 'transparent',
                     tooltip: { trigger: 'item', formatter: '{b}: {c}台 ({d}%)' },
                     series: [{
-                        type: 'pie', radius: ['40%', '70%'], center: ['50%', '50%'],
+                        type: 'pie', radius: isMobile ? ['30%', '55%'] : ['40%', '70%'], center: ['50%', '50%'],
                         itemStyle: { borderRadius: 5, borderColor: isDark ? '#16213e' : '#fff', borderWidth: 2 },
-                        label: { show: true, formatter: '{b}\n{c} 台', fontSize: 13, color: isDark ? '#ecf0f1' : '#2c3e50' },
-                        labelLine: { show: true, length: 15, length2: 20, smooth: true },
+                        label: { show: true, formatter: '{b}\n{c} 台', fontSize: isMobile ? 10 : 13, color: isDark ? '#ecf0f1' : '#2c3e50' },
+                        labelLine: { show: true, length: isMobile ? 5 : 15, length2: isMobile ? 10 : 20, smooth: true },
                         data: latestData
                     }]
                 };
@@ -318,10 +332,21 @@
             snapshotChartInst.setOption(option);
         }
 
+        // 監聽螢幕旋轉與縮放，確保圖表隨時重繪適應新大小
         window.addEventListener('resize', function() {
-            if (snapshotChartInst) snapshotChartInst.resize();
-            if (trendChartInst) trendChartInst.resize();
-            if (timeMachineInst) timeMachineInst.resize();
+            if (snapshotChartInst) {
+                snapshotChartInst.resize();
+                // 重新渲染以套用手機版特有的字體大小與標籤旋轉
+                setTimeout(() => renderSnapshotChart(currentSnapshotType), 100);
+            }
+            if (trendChartInst) {
+                trendChartInst.resize();
+                setTimeout(renderTrendChart, 100);
+            }
+            if (timeMachineInst) {
+                timeMachineInst.resize();
+                setTimeout(renderTimeMachineChart, 100);
+            }
         });
         init();
     </script>
